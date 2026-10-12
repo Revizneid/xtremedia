@@ -1,4 +1,5 @@
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { INITIAL_SONGS, INITIAL_ARTISTS, INITIAL_ALBUMS, INITIAL_GENRES } from './mockData';
 import { Song, Artist, Album, Genre, MusicGift, Comment, User, SafeUser, Role } from './types';
@@ -16,8 +17,24 @@ interface StoreData {
   config: Record<string, string>;
 }
 
-const DATA_DIR = path.join(process.cwd(), 'data');
+const DATA_DIR = process.env.XTREMEDIA_DATA_DIR || path.join(process.cwd(), 'data');
+const TMP_DATA_DIR = path.join(os.tmpdir(), 'xtremedia-v2-data');
 const STORE_FILE = path.join(DATA_DIR, 'store.json');
+const TMP_STORE_FILE = path.join(TMP_DATA_DIR, 'store.json');
+
+function getStorePaths(): { dir: string; file: string } {
+  const preferredDir = process.env.XTREMEDIA_DATA_DIR || DATA_DIR;
+  const preferredFile = path.join(preferredDir, 'store.json');
+
+  try {
+    fs.mkdirSync(preferredDir, { recursive: true });
+    fs.accessSync(preferredDir, fs.constants.W_OK);
+    return { dir: preferredDir, file: preferredFile };
+  } catch {
+    fs.mkdirSync(TMP_DATA_DIR, { recursive: true });
+    return { dir: TMP_DATA_DIR, file: TMP_STORE_FILE };
+  }
+}
 
 function getInitialSeedUsers(): User[] {
   const adminAuth = hashPassword('admin123', 'seedadminsalt1234');
@@ -59,11 +76,27 @@ class DatabaseStore {
 
   private loadData(): StoreData {
     try {
-      if (!fs.existsSync(DATA_DIR)) {
-        fs.mkdirSync(DATA_DIR, { recursive: true });
+      const preferred = getStorePaths();
+      const activeFile = preferred.file;
+
+      if (fs.existsSync(activeFile)) {
+        const fileContent = fs.readFileSync(activeFile, 'utf-8');
+        const parsed = JSON.parse(fileContent);
+        const users = parsed.users && parsed.users.length > 0 ? parsed.users : getInitialSeedUsers();
+        return {
+          songs: parsed.songs || [...INITIAL_SONGS],
+          artists: parsed.artists || [...INITIAL_ARTISTS],
+          albums: parsed.albums || [...INITIAL_ALBUMS],
+          genres: parsed.genres || [...INITIAL_GENRES],
+          gifts: parsed.gifts || [],
+          playlist: parsed.playlist || [],
+          comments: parsed.comments || [],
+          users: users,
+          config: parsed.config || { webTitle: 'XtreMedia V2' },
+        };
       }
 
-      if (fs.existsSync(STORE_FILE)) {
+      if (preferred.file !== STORE_FILE && fs.existsSync(STORE_FILE)) {
         const fileContent = fs.readFileSync(STORE_FILE, 'utf-8');
         const parsed = JSON.parse(fileContent);
         const users = parsed.users && parsed.users.length > 0 ? parsed.users : getInitialSeedUsers();
@@ -101,11 +134,9 @@ class DatabaseStore {
 
   private saveData(dataToSave?: StoreData): void {
     try {
-      if (!fs.existsSync(DATA_DIR)) {
-        fs.mkdirSync(DATA_DIR, { recursive: true });
-      }
+      const target = getStorePaths();
       const data = dataToSave || this.data;
-      fs.writeFileSync(STORE_FILE, JSON.stringify(data, null, 2), 'utf-8');
+      fs.writeFileSync(target.file, JSON.stringify(data, null, 2), 'utf-8');
     } catch (err) {
       console.error('Failed to persist store.json to disk:', err);
     }
