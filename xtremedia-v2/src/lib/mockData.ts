@@ -1,0 +1,242 @@
+import { Artist, Album, Genre, Song } from './types';
+
+export const INITIAL_GENRES: Genre[] = [
+  { id: 'genre-1', name: 'Nhạc Trẻ V-Pop', slug: 'nhac-tre-vpop', parentId: null, sortOrder: 1 },
+  { id: 'genre-2', name: 'Trữ Tình & Bolero', slug: 'tru-tinh-bolero', parentId: null, sortOrder: 2 },
+  { id: 'genre-3', name: 'Rap & Hip-Hop Việt', slug: 'rap-hiphop-viet', parentId: null, sortOrder: 3 },
+  { id: 'genre-4', name: 'Acoustic & Chill', slug: 'acoustic-chill', parentId: null, sortOrder: 4 },
+  { id: 'genre-5', name: 'Nhạc Quốc Tế (US-UK)', slug: 'us-uk-pop', parentId: null, sortOrder: 5 },
+  { id: 'genre-6', name: 'K-Pop Hallyu', slug: 'kpop', parentId: null, sortOrder: 6 },
+];
+
+export const INITIAL_ARTISTS: Artist[] = [
+  {
+    id: 'artist-1',
+    name: 'Sơn Tùng M-TP',
+    nameAscii: 'Son Tung M-TP',
+    slug: 'son-tung-m-tp',
+    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+    bio: 'Ca sĩ, nhạc sĩ người Việt Nam, biểu tượng V-Pop đương đại.',
+    country: 'VIETNAM',
+    viewCount: 1542000,
+  },
+  {
+    id: 'artist-2',
+    name: 'Vũ.',
+    nameAscii: 'Vu',
+    slug: 'vu',
+    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
+    bio: 'Hoàng tử Indie Việt Nam với chất giọng mộc mạc và sâu lắng.',
+    country: 'VIETNAM',
+    viewCount: 923000,
+  },
+  {
+    id: 'artist-3',
+    name: 'Đan Trường',
+    nameAscii: 'Dan Truong',
+    slug: 'dan-truong',
+    avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80',
+    bio: 'Biểu tượng âm nhạc thập niên 2000 gắn liền với ký ức XtreMedia.',
+    country: 'VIETNAM',
+    viewCount: 2350000,
+  },
+  {
+    id: 'artist-4',
+    name: 'The Weeknd',
+    nameAscii: 'The Weeknd',
+    slug: 'the-weeknd',
+    avatarUrl: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=400&q=80',
+    bio: 'Ngôi sao R&B/Pop toàn cầu với các bản hit Synthwave bất hủ.',
+    country: 'INTERNATIONAL',
+    viewCount: 4500000,
+  },
+];
+
+export const INITIAL_ALBUMS: Album[] = [
+  {
+    id: 'album-1',
+    title: 'Một Vạn Năm',
+    titleAscii: 'Mot Van Nam',
+    slug: 'mot-van-nam',
+    coverUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=500&q=80',
+    description: 'Album phòng thu thứ 2 của Vũ. mang đậm phong cách Acoustic lãng mạn.',
+    artistId: 'artist-2',
+    artistName: 'Vũ.',
+    releaseDate: '2022-09-08',
+    viewCount: 420000,
+  },
+  {
+    id: 'album-2',
+    title: 'Ký Ức 2000s Remastered',
+    titleAscii: 'Ky Uc 2000s Remastered',
+    slug: 'ky-uc-2000s',
+    coverUrl: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=500&q=80',
+    description: 'Tuyển tập những bản tình ca bất hủ thời kỳ đầu của XtreMedia.',
+    artistId: 'artist-3',
+    artistName: 'Đan Trường',
+    releaseDate: '2007-06-15',
+    viewCount: 1850000,
+  },
+  {
+    id: 'album-3',
+    title: 'After Hours Cyber Edition',
+    titleAscii: 'After Hours Cyber Edition',
+    slug: 'after-hours',
+    coverUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=500&q=80',
+    description: 'Những giai điệu Synth-pop mê hoặc cho đêm muộn.',
+    artistId: 'artist-4',
+    artistName: 'The Weeknd',
+    releaseDate: '2020-03-20',
+    viewCount: 3900000,
+  },
+];
+
+// Sample reliable public domain and Creative Commons streaming audio URLs with synchronized LRC lyrics
+export const INITIAL_SONGS: Song[] = [
+  {
+    id: 'song-1',
+    title: 'Bước Qua Mùa Cô Đơn (Acoustic Version)',
+    titleAscii: 'Buoc Qua Mua Co Don',
+    slug: 'buoc-qua-mua-co-don',
+    artistId: 'artist-2',
+    artistName: 'Vũ.',
+    albumId: 'album-1',
+    albumTitle: 'Một Vạn Năm',
+    genreId: 'genre-4',
+    genreName: 'Acoustic & Chill',
+    audioUrl: 'https://actions.google.com/sounds/v1/ambiences/outdoor_rain_medium.ogg', // Reliable audio stream
+    coverUrl: 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?auto=format&fit=crop&w=500&q=80',
+    durationSeconds: 245,
+    bitrateKbps: 320,
+    playCount: 154800,
+    playCountMonth: 32400,
+    downloadCount: 12500,
+    isBroken: false,
+    status: 'ACTIVE',
+    createdAt: '2026-01-10T08:00:00Z',
+    lyricsLrc: `[00:00.00] Bước Qua Mùa Cô Đơn - Vũ.
+[00:05.00] Giai điệu mùa thu tràn về trên những con phố quen
+[00:12.50] Chợt nhận ra một mùa cô đơn nữa đã gõ cửa
+[00:20.00] Từng giọt mưa rơi nhẹ bên khung cửa sổ vắng
+[00:27.50] Nhớ bóng hình ai đã từng bước qua cuộc đời
+[00:36.00] Dẫu biết thời gian trôi không thể quay lại
+[00:44.00] Lòng vẫn ngân nga câu hát của ngày hôm qua
+[00:52.00] Hẹn gặp lại em ở một mùa rực rỡ nắng
+[01:02.00] Khi nỗi cô đơn đã hóa thành nụ cười an yên.`,
+  },
+  {
+    id: 'song-2',
+    title: 'Mãi Mãi Một Tình Yêu (Retro V2 Remaster)',
+    titleAscii: 'Mai Mai Mot Tinh Yeu',
+    slug: 'mai-mai-mot-tinh-yeu',
+    artistId: 'artist-3',
+    artistName: 'Đan Trường',
+    albumId: 'album-2',
+    albumTitle: 'Ký Ức 2000s Remastered',
+    genreId: 'genre-2',
+    genreName: 'Trữ Tình & Bolero',
+    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', // Full stereo musical MP3
+    coverUrl: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=500&q=80',
+    durationSeconds: 372,
+    bitrateKbps: 320,
+    playCount: 382400,
+    playCountMonth: 58900,
+    downloadCount: 45600,
+    isBroken: false,
+    status: 'ACTIVE',
+    createdAt: '2026-02-14T09:30:00Z',
+    lyricsLrc: `[00:00.00] Mãi Mãi Một Tình Yêu - Đan Trường (Ký Ức XtreMedia)
+[00:15.00] Người yêu hỡi, có biết chăng lòng anh mãi mong chờ
+[00:25.50] Từng lời ca trao em thiết tha trong ngàn nỗi nhớ
+[00:36.00] Dù năm tháng phong ba, tình anh vẫn như biển lớn
+[00:48.00] Nguyện trọn đời bên em qua bao mùa lá rơi
+[01:00.00] Giữ lấy nụ cười ấm áp của ngày đầu tiên
+[01:12.00] Dẫu ngàn trùng xa cách, tim vẫn một phương trời
+[01:25.00] Mãi mãi khắc sâu một lời hẹn ước thuở nào!`,
+  },
+  {
+    id: 'song-3',
+    title: 'Neon Midnight Lights (Cyber V-Pop)',
+    titleAscii: 'Neon Midnight Lights',
+    slug: 'neon-midnight-lights',
+    artistId: 'artist-1',
+    artistName: 'Sơn Tùng M-TP',
+    albumId: null,
+    albumTitle: null,
+    genreId: 'genre-1',
+    genreName: 'Nhạc Trẻ V-Pop',
+    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
+    coverUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=500&q=80',
+    durationSeconds: 423,
+    bitrateKbps: 320,
+    playCount: 692000,
+    playCountMonth: 120500,
+    downloadCount: 88900,
+    isBroken: false,
+    status: 'ACTIVE',
+    createdAt: '2026-03-01T12:00:00Z',
+    lyricsLrc: `[00:00.00] Neon Midnight Lights - Modern Beats
+[00:10.00] Ánh đèn neon rực sáng giữa phố thị không ngủ
+[00:18.00] Giai điệu bass dồn dập kéo ta vào cơn mê
+[00:28.00] Nâng ly lên nào, quên hết những âu lo ngày cũ
+[00:38.00] Đêm nay chỉ còn âm nhạc và những nhịp đập tự do!
+[00:50.00] Feel the rhythm, let it take control
+[01:02.00] Bay vào không gian cùng XtreMedia V2!`,
+  },
+  {
+    id: 'song-4',
+    title: 'Blinding Waves of Night',
+    titleAscii: 'Blinding Waves of Night',
+    slug: 'blinding-waves-of-night',
+    artistId: 'artist-4',
+    artistName: 'The Weeknd',
+    albumId: 'album-3',
+    albumTitle: 'After Hours Cyber Edition',
+    genreId: 'genre-5',
+    genreName: 'Nhạc Quốc Tế (US-UK)',
+    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
+    coverUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=500&q=80',
+    durationSeconds: 345,
+    bitrateKbps: 320,
+    playCount: 940000,
+    playCountMonth: 210000,
+    downloadCount: 154000,
+    isBroken: false,
+    status: 'ACTIVE',
+    createdAt: '2026-03-15T15:20:00Z',
+    lyricsLrc: `[00:00.00] Blinding Waves of Night - Synthwave Edition
+[00:14.00] The city is empty, no one around to save me
+[00:26.00] I can't sleep until I feel your touch
+[00:38.00] In the night when the lights begin to fade
+[00:50.00] I'm running through the darkness to find my way
+[01:05.00] Oh, the sound of the bass is taking over
+[01:20.00] Forever lost in the echoes of the night.`,
+  },
+  {
+    id: 'song-5',
+    title: 'Lặng Yên Dưới Hiên Trà (Lo-Fi Chill)',
+    titleAscii: 'Lang Yen Duoi Hien Tra',
+    slug: 'lang-yen-duoi-hien-tra',
+    artistId: 'artist-2',
+    artistName: 'Vũ.',
+    albumId: 'album-1',
+    albumTitle: 'Một Vạn Năm',
+    genreId: 'genre-4',
+    genreName: 'Acoustic & Chill',
+    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3',
+    coverUrl: 'https://images.unsplash.com/photo-1445985543470-41fba5c3144a?auto=format&fit=crop&w=500&q=80',
+    durationSeconds: 278,
+    bitrateKbps: 320,
+    playCount: 112000,
+    playCountMonth: 18400,
+    downloadCount: 7600,
+    isBroken: false,
+    status: 'ACTIVE',
+    createdAt: '2026-03-20T10:00:00Z',
+    lyricsLrc: `[00:00.00] Lặng Yên Dưới Hiên Trà - Lo-Fi Session
+[00:12.00] Một tách trà thơm thoang thoảng khói lam chiều
+[00:24.00] Ngắm đàn chim nghiêng cánh bay về phương xa
+[00:38.00] Tâm hồn dịu lại sau những bộn bề nhân thế
+[00:52.00] Thấy bình yên ngập tràn từng hơi thở êm trôi.`,
+  },
+];
