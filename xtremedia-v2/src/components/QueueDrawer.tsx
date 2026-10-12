@@ -18,22 +18,38 @@ export default function QueueDrawer() {
   if (!isQueueOpen) return null;
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        right: 0,
-        bottom: 'var(--player-height)',
-        width: '360px',
-        zIndex: 55,
-        background: 'rgba(10, 14, 23, 0.95)',
-        backdropFilter: 'var(--glass-blur)',
-        borderLeft: '1px solid var(--border-subtle)',
-        display: 'flex',
-        flexDirection: 'column',
-        boxShadow: '-10px 0 30px rgba(0,0,0,0.5)',
-      }}
-    >
+    <>
+      {/* Mobile Backdrop */}
+      <div
+        className="only-mobile-block"
+        onClick={toggleQueueDrawer}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0, 0, 0, 0.7)',
+          backdropFilter: 'blur(8px)',
+          zIndex: 54,
+        }}
+      />
+
+      <div
+        className="drawer-container"
+        style={{
+          position: 'fixed',
+          top: 0,
+          right: 0,
+          bottom: 'var(--player-height)',
+          width: 'min(360px, 100vw)',
+          maxWidth: '100vw',
+          zIndex: 55,
+          background: 'rgba(10, 14, 23, 0.95)',
+          backdropFilter: 'var(--glass-blur)',
+          borderLeft: '1px solid var(--border-subtle)',
+          display: 'flex',
+          flexDirection: 'column',
+          boxShadow: '-10px 0 30px rgba(0,0,0,0.5)',
+        }}
+      >
       {/* Header */}
       <div
         style={{
@@ -156,5 +172,6 @@ export default function QueueDrawer() {
         )}
       </div>
     </div>
+    </>
   );
 }

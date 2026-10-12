@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Search, Sparkles, Bell, User, Music, ChevronDown, LogOut, ShieldCheck } from 'lucide-react';
+import { Search, Sparkles, Bell, User, Music, ChevronDown, LogOut, ShieldCheck, Menu } from 'lucide-react';
 import { Genre } from '@/lib/types';
 import { useAuth } from '@/context/AuthContext';
 
@@ -12,6 +12,7 @@ interface HeaderProps {
   genres: Genre[];
   selectedGenre: string | null;
   setSelectedGenre: (id: string | null) => void;
+  onToggleSidebar?: () => void;
 }
 
 export default function Header({
@@ -20,11 +21,13 @@ export default function Header({
   genres,
   selectedGenre,
   setSelectedGenre,
+  onToggleSidebar,
 }: HeaderProps) {
   const { user, openAuthModal, logout } = useAuth();
   const [showDropdown, setShowDropdown] = useState(false);
   return (
     <header
+      className="header-container"
       style={{
         position: 'sticky',
         top: 0,
@@ -38,9 +41,32 @@ export default function Header({
         gap: '14px',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '24px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+        {/* Mobile Hamburger Toggle Button */}
+        {onToggleSidebar && (
+          <button
+            onClick={onToggleSidebar}
+            className="only-mobile"
+            aria-label="Mở menu điều hướng"
+            style={{
+              background: 'rgba(255, 255, 255, 0.08)',
+              border: 'none',
+              borderRadius: '10px',
+              width: '40px',
+              height: '40px',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#FFF',
+              cursor: 'pointer',
+              flexShrink: 0,
+            }}
+          >
+            <Menu size={22} />
+          </button>
+        )}
+
         {/* Search Bar */}
-        <div style={{ position: 'relative', width: '100%', maxWidth: '480px' }}>
+        <div style={{ position: 'relative', width: '100%', maxWidth: '480px', flex: 1 }}>
           <Search
             size={18}
             style={{
@@ -53,17 +79,17 @@ export default function Header({
           />
           <input
             type="text"
-            placeholder="Tìm bài hát, ca sĩ, album (gõ không dấu cũng được)..."
+            placeholder="Tìm bài hát, ca sĩ, album..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{
               width: '100%',
-              padding: '12px 16px 12px 46px',
+              padding: '10px 16px 10px 44px',
               borderRadius: '9999px',
               border: '1px solid var(--border-subtle)',
               background: 'rgba(255, 255, 255, 0.05)',
               color: '#FFF',
-              fontSize: '14px',
+              fontSize: '13px',
               outline: 'none',
               transition: 'all 0.2s ease',
             }}
@@ -81,10 +107,10 @@ export default function Header({
         </div>
 
         {/* Right Action Icons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
           <div
+            className="hide-mobile"
             style={{
-              display: 'flex',
               alignItems: 'center',
               gap: '6px',
               padding: '8px 14px',
@@ -100,7 +126,7 @@ export default function Header({
             <span>XtreMedia Engine 2026</span>
           </div>
 
-          <button className="btn-icon">
+          <button className="btn-icon hide-mobile">
             <Bell size={18} />
           </button>
 
@@ -307,7 +333,10 @@ export default function Header({
       </div>
 
       {/* Genre Filter Pills */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
+      <div
+        className="no-scrollbar touch-scroll"
+        style={{ display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}
+      >
         <button
           onClick={() => setSelectedGenre(null)}
           style={{

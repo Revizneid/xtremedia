@@ -5,6 +5,7 @@ import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import HeroBanner from '@/components/HeroBanner';
 import SongList from '@/components/SongList';
+import MobileBottomNav from '@/components/MobileBottomNav';
 import { INITIAL_SONGS, INITIAL_ARTISTS, INITIAL_ALBUMS, INITIAL_GENRES } from '@/lib/mockData';
 import { useAudioPlayer } from '@/context/AudioPlayerContext';
 import { Play, Disc, Mic2, Sparkles, Heart, Radio, ListMusic, Volume2 } from 'lucide-react';
@@ -14,6 +15,7 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
   const [songsList, setSongsList] = useState(INITIAL_SONGS);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   const { playSong } = useAudioPlayer();
 
@@ -60,11 +62,17 @@ export default function Home() {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-primary)' }}>
-      {/* Fixed Sidebar */}
-      <Sidebar currentTab={currentTab} setCurrentTab={setCurrentTab} />
+      {/* Fixed / Mobile Drawer Sidebar */}
+      <Sidebar
+        currentTab={currentTab}
+        setCurrentTab={setCurrentTab}
+        isOpen={isMobileSidebarOpen}
+        onClose={() => setIsMobileSidebarOpen(false)}
+      />
 
       {/* Main Content Area */}
       <main
+        className="main-content-layout"
         style={{
           marginLeft: 'var(--sidebar-width)',
           flex: 1,
@@ -81,10 +89,11 @@ export default function Home() {
           genres={INITIAL_GENRES}
           selectedGenre={selectedGenre}
           setSelectedGenre={setSelectedGenre}
+          onToggleSidebar={() => setIsMobileSidebarOpen((prev) => !prev)}
         />
 
         {/* Dynamic Page Views */}
-        <div style={{ padding: '32px', maxWidth: '1400px', width: '100%', margin: '0 auto' }}>
+        <div className="content-padding" style={{ padding: '32px', maxWidth: '1400px', width: '100%', margin: '0 auto' }}>
           {currentTab === 'discover' && (
             <>
               {/* Hero Banner for Featured Trending Track */}
@@ -329,6 +338,13 @@ export default function Home() {
           )}
         </div>
       </main>
+
+      {/* Touch-Friendly Mobile Bottom Navigation */}
+      <MobileBottomNav
+        currentTab={currentTab}
+        setCurrentTab={setCurrentTab}
+        onOpenMenu={() => setIsMobileSidebarOpen(true)}
+      />
     </div>
   );
 }

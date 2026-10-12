@@ -89,6 +89,7 @@ export default function SongList({ songs, title = 'Danh Sách Bài Hát', subtit
       >
         {/* Table Header */}
         <div
+          className="song-table-header"
           style={{
             display: 'grid',
             gridTemplateColumns: '48px 1fr 180px 120px 80px 140px',
@@ -122,6 +123,7 @@ export default function SongList({ songs, title = 'Danh Sách Bài Hát', subtit
             return (
               <div
                 key={song.id}
+                className="song-table-row"
                 style={{
                   display: 'grid',
                   gridTemplateColumns: '48px 1fr 180px 120px 80px 140px',
@@ -229,17 +231,17 @@ export default function SongList({ songs, title = 'Danh Sách Bài Hát', subtit
                 </div>
 
                 {/* Album */}
-                <div style={{ color: 'var(--text-muted)', fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div className="song-row-album" style={{ color: 'var(--text-muted)', fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {song.albumTitle || 'Đơn ca'}
                 </div>
 
                 {/* Play Count */}
-                <div style={{ textAlign: 'right', color: 'var(--text-muted)', fontSize: '13px' }}>
+                <div className="song-row-plays" style={{ textAlign: 'right', color: 'var(--text-muted)', fontSize: '13px' }}>
                   {song.playCount.toLocaleString('vi-VN')}
                 </div>
 
                 {/* Duration */}
-                <div style={{ textAlign: 'right', color: 'var(--text-muted)', fontSize: '13px' }}>
+                <div className="song-row-duration" style={{ textAlign: 'right', color: 'var(--text-muted)', fontSize: '13px' }}>
                   {formatDuration(song.durationSeconds)}
                 </div>
 
@@ -270,7 +272,7 @@ export default function SongList({ songs, title = 'Danh Sách Bài Hát', subtit
                   </button>
 
                   <button
-                    className="btn-icon"
+                    className="btn-icon hide-mobile"
                     title="Tải bài hát"
                     onClick={(e) => {
                       e.stopPropagation();
@@ -282,7 +284,7 @@ export default function SongList({ songs, title = 'Danh Sách Bài Hát', subtit
                   </button>
 
                   <button
-                    className="btn-icon"
+                    className="btn-icon hide-mobile"
                     title="Báo link hỏng"
                     onClick={(e) => {
                       e.stopPropagation();

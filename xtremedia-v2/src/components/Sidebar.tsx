@@ -11,16 +11,19 @@ import {
   ListMusic, 
   Radio, 
   ShieldCheck, 
-  AlertCircle 
+  AlertCircle,
+  X,
 } from 'lucide-react';
 import { useAudioPlayer } from '@/context/AudioPlayerContext';
 
 interface SidebarProps {
   currentTab: string;
   setCurrentTab: (tab: string) => void;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
-export default function Sidebar({ currentTab, setCurrentTab }: SidebarProps) {
+export default function Sidebar({ currentTab, setCurrentTab, isOpen = false, onClose }: SidebarProps) {
   const { openGiftModal } = useAudioPlayer();
 
   const menuItems = [
@@ -38,74 +41,119 @@ export default function Sidebar({ currentTab, setCurrentTab }: SidebarProps) {
   ];
 
   return (
-    <aside
-      style={{
-        width: 'var(--sidebar-width)',
-        height: '100vh',
-        position: 'fixed',
-        left: 0,
-        top: 0,
-        padding: '24px 16px',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-        zIndex: 40,
-        borderRight: '1px solid var(--border-subtle)',
-        background: 'rgba(8, 11, 17, 0.85)',
-        backdropFilter: 'var(--glass-blur)',
-      }}
-    >
-      <div>
-        {/* Brand Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0 8px', marginBottom: '32px' }}>
-          <div
-            style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: '12px',
-              background: 'var(--accent-gradient)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 4px 15px rgba(99, 102, 241, 0.4)',
-            }}
-          >
-            <Disc size={24} color="#FFF" />
-          </div>
-          <div>
-            <h1 style={{ fontSize: '20px', fontWeight: 800, letterSpacing: '-0.5px', color: '#FFF' }}>
-              Xtre<span style={{ color: 'var(--accent-rose)' }}>Media</span>
-            </h1>
-            <span
-              style={{
-                fontSize: '10px',
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                background: 'rgba(99, 102, 241, 0.15)',
-                color: 'var(--accent-indigo)',
-                padding: '2px 6px',
-                borderRadius: '6px',
-                letterSpacing: '0.5px',
-              }}
-            >
-              V2 Remaster
-            </span>
-          </div>
-        </div>
+    <>
+      {/* Mobile Backdrop Overlay */}
+      {isOpen && (
+        <div
+          onClick={onClose}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.7)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 90,
+          }}
+          className="only-mobile-block"
+        />
+      )}
 
-        {/* Main Menu Navigation */}
-        <div style={{ marginBottom: '28px' }}>
-          <p style={{ fontSize: '11px', textTransform: 'uppercase', fontWeight: 700, color: 'var(--text-muted)', padding: '0 10px', marginBottom: '10px', letterSpacing: '0.8px' }}>
-            Menu Chính
-          </p>
-          <nav style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            {menuItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = currentTab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setCurrentTab(item.id)}
+      <aside
+        className={`sidebar-desktop ${isOpen ? 'sidebar-open' : ''}`}
+        style={{
+          width: '260px',
+          height: '100vh',
+          position: 'fixed',
+          left: 0,
+          top: 0,
+          padding: '24px 16px',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          zIndex: 95,
+          borderRight: '1px solid var(--border-subtle)',
+          background: 'rgba(8, 11, 17, 0.95)',
+          backdropFilter: 'var(--glass-blur)',
+          overflowY: 'auto',
+        }}
+      >
+        <div>
+          {/* Brand Logo & Close Button */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 8px', marginBottom: '32px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div
+                style={{
+                  width: '42px',
+                  height: '42px',
+                  borderRadius: '12px',
+                  background: 'var(--accent-gradient)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 4px 15px rgba(99, 102, 241, 0.4)',
+                }}
+              >
+                <Disc size={24} color="#FFF" />
+              </div>
+              <div>
+                <h1 style={{ fontSize: '20px', fontWeight: 800, letterSpacing: '-0.5px', color: '#FFF' }}>
+                  Xtre<span style={{ color: 'var(--accent-rose)' }}>Media</span>
+                </h1>
+                <span
+                  style={{
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    background: 'rgba(99, 102, 241, 0.15)',
+                    color: 'var(--accent-indigo)',
+                    padding: '2px 6px',
+                    borderRadius: '6px',
+                    letterSpacing: '0.5px',
+                  }}
+                >
+                  V2 Remaster
+                </span>
+              </div>
+            </div>
+
+            {/* Mobile Close Button */}
+            {onClose && (
+              <button
+                onClick={onClose}
+                className="only-mobile"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '36px',
+                  height: '36px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                }}
+              >
+                <X size={18} />
+              </button>
+            )}
+          </div>
+
+          {/* Main Menu Navigation */}
+          <div style={{ marginBottom: '28px' }}>
+            <p style={{ fontSize: '11px', textTransform: 'uppercase', fontWeight: 700, color: 'var(--text-muted)', padding: '0 10px', marginBottom: '10px', letterSpacing: '0.8px' }}>
+              Menu Chính
+            </p>
+            <nav style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              {menuItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = currentTab === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setCurrentTab(item.id);
+                      if (onClose) onClose();
+                    }}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -158,6 +206,7 @@ export default function Sidebar({ currentTab, setCurrentTab }: SidebarProps) {
                   onClick={() => {
                     if (item.action) item.action();
                     else setCurrentTab(item.id);
+                    if (onClose) onClose();
                   }}
                   style={{
                     display: 'flex',
@@ -213,5 +262,6 @@ export default function Sidebar({ currentTab, setCurrentTab }: SidebarProps) {
         </p>
       </div>
     </aside>
+    </>
   );
 }

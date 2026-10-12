@@ -60,10 +60,12 @@ export default function GiftModal() {
         style={{
           width: '100%',
           maxWidth: '520px',
+          maxHeight: '90vh',
+          overflowY: 'auto',
           background: 'rgba(14, 20, 32, 0.95)',
           border: '1px solid var(--border-highlight)',
           borderRadius: '24px',
-          padding: '28px',
+          padding: '24px',
           boxShadow: '0 25px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(99, 102, 241, 0.25)',
           position: 'relative',
         }}
@@ -170,7 +172,7 @@ export default function GiftModal() {
           </div>
         ) : (
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
               <div>
                 <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
                   Tên của bạn *
@@ -215,7 +217,7 @@ export default function GiftModal() {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
               <div>
                 <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
                   Tên người nhận *

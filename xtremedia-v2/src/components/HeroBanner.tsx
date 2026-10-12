@@ -15,6 +15,7 @@ export default function HeroBanner({ featuredSong }: HeroBannerProps) {
 
   return (
     <div
+      className="hero-banner-container"
       style={{
         position: 'relative',
         borderRadius: '24px',
@@ -68,6 +69,7 @@ export default function HeroBanner({ featuredSong }: HeroBannerProps) {
         </div>
 
         <h2
+          className="hero-banner-title"
           style={{
             fontSize: '34px',
             fontWeight: 800,
@@ -80,12 +82,15 @@ export default function HeroBanner({ featuredSong }: HeroBannerProps) {
           {featuredSong.title}
         </h2>
 
-        <p style={{ fontSize: '17px', color: 'var(--text-secondary)', marginBottom: '24px', fontWeight: 500 }}>
+        <p
+          className="hero-banner-subtitle"
+          style={{ fontSize: '17px', color: 'var(--text-secondary)', marginBottom: '24px', fontWeight: 500 }}
+        >
           Trình bày: <span style={{ color: '#FFF', fontWeight: 600 }}>{featuredSong.artistName}</span>
           {featuredSong.albumTitle ? ` • Album: ${featuredSong.albumTitle}` : ''}
         </p>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div className="hero-banner-buttons" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <button
             className="btn-primary"
             onClick={() => {

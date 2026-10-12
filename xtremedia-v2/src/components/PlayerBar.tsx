@@ -58,6 +58,7 @@ export default function PlayerBar() {
 
   return (
     <div
+      className="player-bar-container"
       style={{
         position: 'fixed',
         bottom: 0,
@@ -65,7 +66,7 @@ export default function PlayerBar() {
         right: 0,
         height: 'var(--player-height)',
         zIndex: 50,
-        background: 'rgba(10, 14, 23, 0.92)',
+        background: 'rgba(10, 14, 23, 0.95)',
         backdropFilter: 'var(--glass-blur)',
         borderTop: '1px solid var(--border-subtle)',
         display: 'flex',
@@ -75,14 +76,54 @@ export default function PlayerBar() {
         boxShadow: '0 -10px 30px rgba(0, 0, 0, 0.6)',
       }}
     >
-      {/* Left: Track Information */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', minWidth: '240px', maxWidth: '320px' }}>
+      {/* Top Edge Progress Bar for Mobile */}
+      <div
+        className="only-mobile-block"
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: '3px',
+          background: 'rgba(255, 255, 255, 0.1)',
+          cursor: 'pointer',
+        }}
+        onClick={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          const clickX = e.clientX - rect.left;
+          const ratio = clickX / rect.width;
+          seek(ratio * duration);
+        }}
+      >
+        <div
+          style={{
+            height: '100%',
+            width: `${progressPercent}%`,
+            background: 'var(--accent-gradient)',
+          }}
+        />
+      </div>
+
+      {/* Left: Track Information (Click opens Fullscreen Karaoke on Mobile) */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          minWidth: 0,
+          maxWidth: '320px',
+          flex: 1,
+          cursor: 'pointer',
+        }}
+        onClick={toggleLyricModal}
+        title="Nhấn để mở Karaoke toàn màn hình"
+      >
         {/* Vinyl Album Art */}
         <div
           style={{
             position: 'relative',
-            width: '56px',
-            height: '56px',
+            width: '46px',
+            height: '46px',
             borderRadius: '50%',
             overflow: 'hidden',
             boxShadow: '0 4px 15px rgba(0, 0, 0, 0.5)',
@@ -103,8 +144,8 @@ export default function PlayerBar() {
               top: '50%',
               left: '50%',
               transform: 'translate(-50%, -50%)',
-              width: '14px',
-              height: '14px',
+              width: '12px',
+              height: '12px',
               borderRadius: '50%',
               background: '#0B0E14',
               border: '2px solid rgba(255, 255, 255, 0.3)',
@@ -112,10 +153,10 @@ export default function PlayerBar() {
           />
         </div>
 
-        <div style={{ overflow: 'hidden' }}>
+        <div style={{ overflow: 'hidden', minWidth: 0 }}>
           <h4
             style={{
-              fontSize: '15px',
+              fontSize: '14px',
               fontWeight: 700,
               color: '#FFF',
               whiteSpace: 'nowrap',
@@ -127,12 +168,12 @@ export default function PlayerBar() {
           </h4>
           <p
             style={{
-              fontSize: '13px',
+              fontSize: '12px',
               color: 'var(--text-secondary)',
               whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
-              marginTop: '2px',
+              marginTop: '1px',
             }}
           >
             {currentSong.artistName}
@@ -140,17 +181,21 @@ export default function PlayerBar() {
         </div>
 
         <button
-          className="btn-icon"
+          className="btn-icon hide-mobile"
           title="Tặng bài hát này"
-          onClick={() => openGiftModal(currentSong)}
+          onClick={(e) => {
+            e.stopPropagation();
+            openGiftModal(currentSong);
+          }}
           style={{ width: '32px', height: '32px', flexShrink: 0 }}
         >
           <Share2 size={16} />
         </button>
       </div>
 
-      {/* Center: Controls & Seekbar */}
+      {/* Center: Desktop Controls & Seekbar */}
       <div
+        className="hide-mobile"
         style={{
           display: 'flex',
           flexDirection: 'column',
@@ -260,15 +305,49 @@ export default function PlayerBar() {
         </div>
       </div>
 
-      {/* Right: Karaoke Lyric & Queue & Volume */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: '240px', justifyContent: 'flex-end' }}>
+      {/* Right: Controls (Mobile: Play/Pause/Next/Mic/Queue; Desktop: Mic/Queue/Volume) */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 'auto', justifyContent: 'flex-end', flexShrink: 0 }}>
+        {/* Mobile Fast Action: Prev/Play/Next */}
+        <button
+          className="only-mobile"
+          onClick={togglePlayPause}
+          aria-label={isPlaying ? 'Tạm dừng' : 'Phát tiếp'}
+          style={{
+            width: '38px',
+            height: '38px',
+            borderRadius: '50%',
+            border: 'none',
+            background: 'var(--accent-gradient)',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#FFF',
+            cursor: 'pointer',
+            boxShadow: '0 2px 10px rgba(99, 102, 241, 0.4)',
+          }}
+        >
+          {isPlaying ? (
+            <Pause size={17} fill="#FFF" color="#FFF" />
+          ) : (
+            <Play size={17} fill="#FFF" color="#FFF" style={{ marginLeft: '2px' }} />
+          )}
+        </button>
+
+        <button
+          className="btn-icon only-mobile"
+          onClick={nextTrack}
+          title="Bài tiếp"
+          style={{ width: '36px', height: '36px' }}
+        >
+          <SkipForward size={18} />
+        </button>
+
         <button
           className={`btn-icon ${isLyricOpen ? 'btn-icon-active' : ''}`}
           onClick={toggleLyricModal}
           title="Lời bài hát Karaoke"
-          style={{ position: 'relative' }}
+          style={{ position: 'relative', width: '36px', height: '36px' }}
         >
-          <Mic2 size={19} />
+          <Mic2 size={18} />
           {currentSong.lyricsLrc && (
             <span
               style={{
@@ -288,9 +367,9 @@ export default function PlayerBar() {
           className={`btn-icon ${isQueueOpen ? 'btn-icon-active' : ''}`}
           onClick={toggleQueueDrawer}
           title="Danh sách phát tiếp theo"
-          style={{ position: 'relative' }}
+          style={{ position: 'relative', width: '36px', height: '36px' }}
         >
-          <ListMusic size={19} />
+          <ListMusic size={18} />
           {queue.length > 0 && (
             <span
               style={{
@@ -310,8 +389,8 @@ export default function PlayerBar() {
           )}
         </button>
 
-        {/* Volume Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        {/* Volume Controls (Desktop Only) */}
+        <div className="player-bar-volume" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '6px' }}>
           <button className="btn-icon" onClick={toggleMute} style={{ width: '32px', height: '32px' }}>
             {isMuted || volume === 0 ? (
               <VolumeX size={17} />

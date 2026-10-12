@@ -151,22 +151,40 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-main)' }}>
+      {/* Mobile Admin Drawer Backdrop */}
+      {mobileMenuOpen && (
+        <div
+          onClick={() => setMobileMenuOpen(false)}
+          className="only-mobile-block"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.7)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 45,
+          }}
+        />
+      )}
+
       {/* Admin Sidebar */}
       <aside
+        className={`sidebar-desktop ${mobileMenuOpen ? 'sidebar-open' : ''}`}
         style={{
           width: '260px',
-          background: 'rgba(11, 15, 25, 0.95)',
+          background: 'rgba(11, 15, 25, 0.98)',
           borderRight: '1px solid var(--border-subtle)',
           display: 'flex',
           flexDirection: 'column',
-          position: 'sticky',
+          position: 'fixed',
+          left: 0,
           top: 0,
           height: '100vh',
-          zIndex: 40,
+          zIndex: 50,
+          overflowY: 'auto',
         }}
       >
         {/* Brand Header */}
-        <div style={{ padding: '24px 20px', borderBottom: '1px solid var(--border-subtle)' }}>
+        <div style={{ padding: '20px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div
               style={{
@@ -189,6 +207,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>XtreMedia Management</div>
             </div>
           </div>
+
+          {/* Close drawer button on mobile */}
+          <button
+            onClick={() => setMobileMenuOpen(false)}
+            className="only-mobile"
+            style={{
+              background: 'rgba(255, 255, 255, 0.08)',
+              border: 'none',
+              borderRadius: '50%',
+              width: '32px',
+              height: '32px',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--text-muted)',
+              cursor: 'pointer',
+            }}
+          >
+            <X size={16} />
+          </button>
         </div>
 
         {/* Navigation Links */}
@@ -204,6 +241,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={() => setMobileMenuOpen(false)}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -318,7 +356,70 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </aside>
 
       {/* Main Content Area */}
-      <main style={{ flex: 1, minWidth: 0, paddingBottom: '90px', overflowY: 'auto' }}>
+      <main
+        className="main-content-layout"
+        style={{
+          marginLeft: '260px',
+          flex: 1,
+          minWidth: 0,
+          paddingBottom: '90px',
+          overflowY: 'auto',
+        }}
+      >
+        {/* Mobile Admin Top Navigation Bar */}
+        <div
+          className="only-mobile"
+          style={{
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '12px 18px',
+            background: 'rgba(11, 15, 25, 0.95)',
+            borderBottom: '1px solid var(--border-subtle)',
+            position: 'sticky',
+            top: 0,
+            zIndex: 35,
+            backdropFilter: 'blur(16px)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <button
+              onClick={() => setMobileMenuOpen(true)}
+              style={{
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: 'none',
+                borderRadius: '8px',
+                width: '36px',
+                height: '36px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#FFF',
+                cursor: 'pointer',
+              }}
+            >
+              <Menu size={18} />
+            </button>
+            <div style={{ fontSize: '15px', fontWeight: 700, color: '#FFF' }}>
+              Admin<span style={{ color: 'var(--accent-rose)' }}>CP</span> V2
+            </div>
+          </div>
+
+          <Link
+            href="/"
+            style={{
+              fontSize: '12px',
+              color: 'var(--text-secondary)',
+              textDecoration: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+            }}
+          >
+            <Home size={14} />
+            <span>Trang chủ</span>
+          </Link>
+        </div>
+
         {children}
       </main>
     </div>

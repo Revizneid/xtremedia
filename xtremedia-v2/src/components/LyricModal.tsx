@@ -30,11 +30,12 @@ export default function LyricModal() {
 
   return (
     <div
+      className="lyric-modal-container"
       style={{
         position: 'fixed',
         inset: 0,
         zIndex: 60,
-        background: 'rgba(8, 11, 17, 0.95)',
+        background: 'rgba(8, 11, 17, 0.96)',
         backdropFilter: 'blur(30px)',
         WebkitBackdropFilter: 'blur(30px)',
         display: 'flex',
@@ -43,7 +44,7 @@ export default function LyricModal() {
       }}
     >
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div
             style={{
@@ -62,7 +63,7 @@ export default function LyricModal() {
             <Mic2 size={15} />
             <span>Karaoke Realtime Synchronizer</span>
           </div>
-          <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
+          <span className="hide-mobile" style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
             Nhấn vào bất kỳ câu nào để nhảy tới đoạn đó
           </span>
         </div>
@@ -76,10 +77,33 @@ export default function LyricModal() {
         </button>
       </div>
 
+      {/* Mini Mobile Track Header */}
+      <div className="only-mobile" style={{ alignItems: 'center', gap: '12px', paddingBottom: '14px', borderBottom: '1px solid var(--border-subtle)', marginBottom: '14px' }}>
+        <img
+          src={currentSong.coverUrl}
+          alt={currentSong.title}
+          style={{ width: '44px', height: '44px', borderRadius: '10px', objectFit: 'cover', flexShrink: 0 }}
+        />
+        <div style={{ overflow: 'hidden' }}>
+          <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#FFF', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {currentSong.title}
+          </h3>
+          <p style={{ fontSize: '12px', color: 'var(--accent-rose)', marginTop: '2px' }}>
+            {currentSong.artistName}
+          </p>
+        </div>
+      </div>
+
       {/* Main Content: Left Art & Right Lyrics */}
-      <div style={{ display: 'grid', gridTemplateColumns: '380px 1fr', gap: '60px', height: 'calc(100% - 70px)', alignItems: 'center' }}>
+      <div
+        className="lyric-modal-layout"
+        style={{ display: 'grid', gridTemplateColumns: '380px 1fr', gap: '60px', height: 'calc(100% - 70px)', alignItems: 'center' }}
+      >
         {/* Left: Huge Vinyl & Info */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+        <div
+          className="lyric-modal-art"
+          style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}
+        >
           <div
             style={{
               position: 'relative',
@@ -112,13 +136,14 @@ export default function LyricModal() {
 
         {/* Right: Scrolling Lyrics */}
         <div
+          className="touch-scroll"
           style={{
             height: '100%',
             overflowY: 'auto',
-            padding: '40px 20px',
+            padding: '20px 10px',
             display: 'flex',
             flexDirection: 'column',
-            gap: '24px',
+            gap: '20px',
           }}
         >
           {parsedLyrics.length === 0 ? (
@@ -136,6 +161,7 @@ export default function LyricModal() {
                   key={idx}
                   ref={isActive ? activeLineRef : null}
                   onClick={() => seek(line.time)}
+                  className={`lyric-text-line ${isActive ? 'active' : ''}`}
                   style={{
                     fontSize: isActive ? '28px' : '20px',
                     fontWeight: isActive ? 800 : 500,

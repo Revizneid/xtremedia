@@ -82,34 +82,35 @@ export default function AuthModal() {
 
   return (
     <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 100,
-        backgroundColor: 'rgba(5, 7, 12, 0.85)',
-        backdropFilter: 'blur(16px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px',
-      }}
-      onClick={closeAuthModal}
-    >
-      <div
         style={{
-          width: '100%',
-          maxWidth: '460px',
-          background: 'linear-gradient(135deg, rgba(20, 26, 40, 0.95), rgba(12, 16, 24, 0.98))',
-          borderRadius: '24px',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          boxShadow: '0 25px 60px rgba(0, 0, 0, 0.7), 0 0 40px rgba(99, 102, 241, 0.15)',
-          overflow: 'hidden',
+          position: 'fixed',
+          inset: 0,
+          zIndex: 100,
+          backgroundColor: 'rgba(5, 7, 12, 0.85)',
+          backdropFilter: 'blur(16px)',
           display: 'flex',
-          flexDirection: 'column',
-          position: 'relative',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '16px',
         }}
-        onClick={(e) => e.stopPropagation()}
+        onClick={closeAuthModal}
       >
+        <div
+          style={{
+            width: '100%',
+            maxWidth: '460px',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            background: 'linear-gradient(135deg, rgba(20, 26, 40, 0.95), rgba(12, 16, 24, 0.98))',
+            borderRadius: '24px',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            boxShadow: '0 25px 60px rgba(0, 0, 0, 0.7), 0 0 40px rgba(99, 102, 241, 0.15)',
+            display: 'flex',
+            flexDirection: 'column',
+            position: 'relative',
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
         {/* Glow Accent Header */}
         <div
           style={{
