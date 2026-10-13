@@ -1,20 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { db } from '@/lib/db';
-import { verifyPassword, createToken, AUTH_COOKIE_NAME, sanitizeUser } from '@/lib/auth';
+import {
+  verifyPassword,
+  createToken,
+  AUTH_COOKIE_NAME,
+  sanitizeUser,
+  upgradePasswordIfNeeded,
+  getSessionCookieOptions,
+} from '@/lib/auth';
+import { enforceRateLimit, parseJsonBody } from '@/lib/security';
+
+const loginSchema = z.object({
+  identifier: z.string().trim().min(1).max(100),
+  password: z.string().min(8).max(128),
+});
 
 export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const { identifier, password } = body;
+  const rateLimitResponse = enforceRateLimit(request, 5, 60_000, 'auth');
+  if (rateLimitResponse) {
+    return rateLimitResponse;
+  }
 
-    if (!identifier || !password) {
-      return NextResponse.json(
-        { success: false, error: 'Vui lòng điền đầy đủ tài khoản và mật khẩu' },
-        { status: 400 }
-      );
+  try {
+    const bodyResult = await parseJsonBody(request, loginSchema);
+    if (!bodyResult.ok) {
+      return bodyResult.response;
     }
 
-    const user = db.findUserByIdentifier(identifier);
+    const { identifier, password } = bodyResult.data;
+
+    const user = await db.findUserByIdentifier(identifier);
     if (!user) {
       return NextResponse.json(
         { success: false, error: 'Tài khoản hoặc mật khẩu không chính xác' },
@@ -28,6 +44,15 @@ export async function POST(request: NextRequest) {
         { success: false, error: 'Tài khoản hoặc mật khẩu không chính xác' },
         { status: 401 }
       );
+    }
+
+    const upgrade = upgradePasswordIfNeeded(password, user.passwordHash, user.salt);
+    if (upgrade.needsUpgrade && upgrade.hash && upgrade.salt) {
+      await db.updateUser(user.id, {
+        passwordHash: upgrade.hash,
+        salt: upgrade.salt,
+        updatedAt: new Date().toISOString(),
+      });
     }
 
     const safeUser = sanitizeUser(user);
@@ -44,15 +69,10 @@ export async function POST(request: NextRequest) {
       message: 'Đăng nhập thành công!',
     });
 
-    // Set HttpOnly cookie
     response.cookies.set({
+      ...getSessionCookieOptions(),
       name: AUTH_COOKIE_NAME,
       value: token,
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 7 * 24 * 3600, // 7 days
     });
 
     return response;

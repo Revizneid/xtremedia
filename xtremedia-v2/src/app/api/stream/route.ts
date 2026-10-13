@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
   let audioUrl = customUrl;
 
   if (songId) {
-    const song = db.getSongById(songId);
+    const song = await db.getSongById(songId);
     if (!song) {
       return NextResponse.json({ error: 'Song not found' }, { status: 404 });
     }

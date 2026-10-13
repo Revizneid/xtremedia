@@ -24,8 +24,10 @@ lerna-debug.log*
 *.log
 
 # Environment variables
-.env*.local
 .env
+.env.*
+!.env.example
+.env*.local
 
 # OS Files
 .DS_Store
@@ -33,8 +35,27 @@ Thumbs.db
 *.swp
 *.swo
 
-# IDE & Editor
-.vscode/
-.idea/
-*.sublime-project
-*.sublime-workspace
+# Binaries & large tools
+*.exe
+resources/*.exe
+lana-player-premium/resources/*.exe
+lana-player-premium/resources/lana_worker/
+lana-player-premium/out_audio/
+lana-player-premium/dist/
+lana-player-premium/out/
+
+# Xtreme Studio desktop app
+xtremedia-studio/
+xtremedia-studio/dist/
+xtremedia-studio/out/
+xtremedia-studio/.vite/
+xtremedia-studio/node_modules/
+xtremedia-studio/release/
+xtremedia-studio/.electron/
+
+# Local audit / planning / workspace files (not part of app push)
+PROJECT_COMPREHENSIVE_AUDIT.md
+WORK_SESSION_REPORT.md
+"XtreMedia -- Đánh giá & Kế hoạch nâng cấp theo Sprint (kèm Prompt).docx"
+docs/
+xtremedia.code-workspace

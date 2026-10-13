@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, user: null }, { status: 401 });
     }
 
-    const user = db.findUserById(payload.sub);
+    const user = await db.findUserById(payload.sub);
     if (!user) {
       return NextResponse.json({ success: false, user: null }, { status: 401 });
     }

@@ -4,13 +4,13 @@ import { verifyAdminRequest, AUTH_COOKIE_NAME } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
-  const auth = verifyAdminRequest(token, (id) => db.findUserById(id));
+  const auth = await verifyAdminRequest(token, async (id) => db.findUserById(id));
 
   if (!auth.authorized) {
     return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
   }
 
-  const stats = db.getAdminStats();
+  const stats = await db.getAdminStats();
   return NextResponse.json({
     success: true,
     stats,

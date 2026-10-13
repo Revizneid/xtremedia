@@ -1,33 +1,82 @@
 import crypto from 'crypto';
+import { env } from './env';
 import { SafeUser, User } from './types';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'xtremedia-v2-super-secret-key-cyber-acoustic-2026';
 export const AUTH_COOKIE_NAME = 'xm_token';
+export const AUTH_SESSION_TTL_SECONDS = 7 * 24 * 3600;
+export const PBKDF2_ITERATIONS = 310_000;
+export const LEGACY_PBKDF2_ITERATIONS = 100_000;
+
+function getJwtSecret(): string {
+  return env.JWT_SECRET;
+}
+
+export function getSessionCookieOptions() {
+  return {
+    name: AUTH_COOKIE_NAME,
+    path: '/',
+    httpOnly: true,
+    secure: env.NODE_ENV === 'production',
+    sameSite: 'lax' as const,
+    maxAge: AUTH_SESSION_TTL_SECONDS,
+  };
+}
+
+export function getClearSessionCookieOptions() {
+  return {
+    ...getSessionCookieOptions(),
+    value: '',
+    maxAge: 0,
+    expires: new Date(0),
+  };
+}
 
 /**
- * Hash a plain password using PBKDF2 with SHA-512 and random salt (OWASP Recommended)
+ * Hash a plain password using PBKDF2 with SHA-256 and modern iteration count.
  */
 export function hashPassword(password: string, customSalt?: string): { hash: string; salt: string } {
   const salt = customSalt || crypto.randomBytes(16).toString('hex');
-  const hash = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
+  const hash = crypto.pbkdf2Sync(password, salt, PBKDF2_ITERATIONS, 32, 'sha256').toString('hex');
   return { hash, salt };
 }
 
 /**
- * Verify a plain password against stored hash & salt using timing-safe comparison
+ * Verify a plain password against a stored hash and salt.
+ * Supports both current v2 hashes and legacy v1 hashes so old credentials keep working.
  */
 export function verifyPassword(password: string, hash: string, salt: string): boolean {
   try {
-    const computedHash = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
-    const hashBuffer = Buffer.from(hash, 'hex');
-    const computedBuffer = Buffer.from(computedHash, 'hex');
-    if (hashBuffer.length !== computedBuffer.length) {
+    const currentHash = crypto.pbkdf2Sync(password, salt, PBKDF2_ITERATIONS, 32, 'sha256').toString('hex');
+    const storedHash = Buffer.from(hash, 'hex');
+    const currentHashBuffer = Buffer.from(currentHash, 'hex');
+    if (storedHash.length === currentHashBuffer.length && crypto.timingSafeEqual(storedHash, currentHashBuffer)) {
+      return true;
+    }
+
+    const legacyHash = crypto.pbkdf2Sync(password, salt, LEGACY_PBKDF2_ITERATIONS, 64, 'sha512').toString('hex');
+    const legacyHashBuffer = Buffer.from(legacyHash, 'hex');
+    if (storedHash.length !== legacyHashBuffer.length) {
       return false;
     }
-    return crypto.timingSafeEqual(hashBuffer, computedBuffer);
+    return crypto.timingSafeEqual(storedHash, legacyHashBuffer);
   } catch {
     return false;
   }
+}
+
+export function upgradePasswordIfNeeded(password: string, currentHash: string, salt: string): { needsUpgrade: boolean; hash?: string; salt?: string } {
+  const nextHash = crypto.pbkdf2Sync(password, salt, PBKDF2_ITERATIONS, 32, 'sha256').toString('hex');
+  if (nextHash === currentHash) {
+    return { needsUpgrade: false };
+  }
+
+  const legacyHash = crypto.pbkdf2Sync(password, salt, LEGACY_PBKDF2_ITERATIONS, 64, 'sha512').toString('hex');
+  if (legacyHash !== currentHash) {
+    return { needsUpgrade: false };
+  }
+
+  const upgraded = hashPassword(password, salt);
+  return { needsUpgrade: true, hash: upgraded.hash, salt: upgraded.salt };
 }
 
 /**
@@ -78,7 +127,7 @@ export function createToken(payload: Omit<JwtPayload, 'iat' | 'exp'>, expiresInS
   const data = `${encodedHeader}.${encodedPayload}`;
 
   const signature = crypto
-    .createHmac('sha256', JWT_SECRET)
+    .createHmac('sha256', getJwtSecret())
     .update(data)
     .digest('base64')
     .replace(/=/g, '')
@@ -100,7 +149,7 @@ export function verifyToken(token: string): JwtPayload | null {
     const data = `${encodedHeader}.${encodedPayload}`;
 
     const expectedSignature = crypto
-      .createHmac('sha256', JWT_SECRET)
+      .createHmac('sha256', getJwtSecret())
       .update(data)
       .digest('base64')
       .replace(/=/g, '')
@@ -145,10 +194,10 @@ export interface AdminAuthResult {
 /**
  * Verify if request is from an authorized ADMIN or MODERATOR
  */
-export function verifyAdminRequest(
+export async function verifyAdminRequest(
   tokenValue: string | undefined,
-  findUserById: (id: string) => User | undefined
-): AdminAuthResult {
+  findUserById: (id: string) => User | Promise<User | null> | undefined
+): Promise<AdminAuthResult> {
   if (!tokenValue) {
     return { authorized: false, error: 'Vui lòng đăng nhập tài khoản Quản trị viên', status: 401 };
   }
@@ -158,7 +207,7 @@ export function verifyAdminRequest(
     return { authorized: false, error: 'Phiên làm việc đã hết hạn hoặc không hợp lệ', status: 401 };
   }
 
-  const user = findUserById(payload.sub);
+  const user = await findUserById(payload.sub);
   if (!user) {
     return { authorized: false, error: 'Tài khoản không tồn tại', status: 401 };
   }

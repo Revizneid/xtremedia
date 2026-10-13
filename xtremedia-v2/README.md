@@ -1,34 +1,82 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# XtreMedia v2
 
-## Getting Started
-
-First, run the development server:
+## Development
 
 ```bash
+npm install
+npx prisma generate
+npx prisma db push
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Database health
 
-## Learn More
+```bash
+curl http://localhost:3000/api/health
+```
 
-To learn more about Next.js, take a look at the following resources:
+Expected response:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```json
+{ "ok": true, "database": "connected" }
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Migration from legacy JSON store
 
-## Deploy on Vercel
+```bash
+npx tsx scripts/migrate-json-to-db.ts --dry-run --source data/store.json
+npx tsx scripts/migrate-json-to-db.ts --source data/store.json
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The migration script reads the legacy JSON store, upserts artists and genres first, then songs, and prints summary counts for created, updated, and failed rows. It is idempotent on stable record IDs and safe to run repeatedly.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Backup PostgreSQL
+
+Use pg_dump against the same connection string in .env.local:
+
+```bash
+export DATABASE_URL="postgresql://..."
+mkdir -p backups
+pg_dump "$DATABASE_URL" --clean --if-exists --no-owner --no-privileges > backups/xtremedia-$(date +%F-%H%M%S).sql
+```
+
+To restore a backup:
+
+```bash
+psql "$DATABASE_URL" < backups/xtremedia-YYYY-MM-DD-HHMMSS.sql
+```
+
+## Sample seed data
+
+Sample data is available in `data/sample-seed.json` and the legacy export in `data/store.json`.
+
+Use the migration script with the sample seed for a dry run or a real import:
+
+```bash
+npx tsx scripts/migrate-json-to-db.ts --dry-run --source data/sample-seed.json
+npx tsx scripts/migrate-json-to-db.ts --source data/sample-seed.json
+```
+
+## Studio sync API
+
+The sync endpoint is protected by `STUDIO_SYNC_SECRET` and supports idempotency keys:
+
+```bash
+curl -X POST http://localhost:3000/api/studio/sync \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $STUDIO_SYNC_SECRET" \
+  -H "Idempotency-Key: demo-sync-001" \
+  -d '{
+    "title": "Test Sync",
+    "artistName": "Demo Artist",
+    "genreName": "Pop",
+    "audioUrl": "https://example.com/demo.mp3",
+    "videoId": "demo-video-1",
+    "trimStart": 0,
+    "trimEnd": 30
+  }'
+```
+
+The first request creates a song and a SyncLog entry. Repeating the same request with the same Idempotency-Key or the same computed key returns the original record without inserting a second song.

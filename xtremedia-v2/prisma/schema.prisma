@@ -1,24 +1,17 @@
-// Prisma Schema for XtreMedia V2
-// Modern 3NF Database Design
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum Role {
   USER
   MODERATOR
   ADMIN
-}
-
-enum Country {
-  VIETNAM
-  INTERNATIONAL
 }
 
 enum SongStatus {
@@ -28,185 +21,157 @@ enum SongStatus {
 }
 
 model User {
-  id               String       @id @default(uuid())
-  email            String       @unique
-  username         String       @unique
-  passwordHash     String
-  displayName      String
-  role             Role         @default(USER)
-  avatarUrl        String?
-  gender           Int          @default(0) // 0: Unknown, 1: Male, 2: Female
-  hideEmail        Boolean      @default(false)
-  hideGender       Boolean      @default(false)
-  isActive         Boolean      @default(true)
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+  id           String    @id @default(cuid())
+  email        String    @unique
+  username     String?   @unique
+  passwordHash String
+  displayName  String?
+  avatarUrl    String?
+  salt         String?
+  role         Role      @default(USER)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  playlists        Playlist[]
-  comments         Comment[]
-  sentGifts        MusicGift[]  @relation("SentGifts")
-  receivedGifts    MusicGift[]  @relation("ReceivedGifts")
-  listeningHistory UserHistory[]
+  playlists Playlist[]
+  comments  Comment[]
 
   @@map("users")
 }
 
 model Artist {
-  id          String   @id @default(uuid())
-  name        String
-  nameAscii   String
-  slug        String   @unique
-  avatarUrl   String?
-  bio         String?
-  country     Country  @default(VIETNAM)
-  viewCount   Int      @default(0)
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  avatarUrl String?
+  bio       String?
+  country   String?  @default("VIETNAM")
+  viewCount Int      @default(0)
+  createdAt DateTime @default(now())
 
-  songs       Song[]
-  albums      Album[]
+  songs  Song[]
+  albums Album[]
 
-  @@index([nameAscii])
+  @@index([name])
   @@map("artists")
 }
 
-model Album {
-  id          String   @id @default(uuid())
-  title       String
-  titleAscii  String
-  slug        String   @unique
-  coverUrl    String?
-  description String?
-  artistId    String
-  artist      Artist   @relation(fields: [artistId], references: [id], onDelete: Cascade)
-  releaseDate DateTime?
-  viewCount   Int      @default(0)
-  createdAt   DateTime @default(now())
-
-  songs       Song[]
-
-  @@index([titleAscii])
-  @@map("albums")
-}
-
 model Genre {
-  id          String   @id @default(uuid())
-  name        String
-  nameAscii   String
-  slug        String   @unique
-  parentId    String?
-  parent      Genre?   @relation("SubGenres", fields: [parentId], references: [id])
-  subGenres   Genre[]  @relation("SubGenres")
-  sortOrder   Int      @default(0)
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  parentId  String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
 
-  songs       Song[]
+  songs Song[]
 
+  @@index([name])
   @@map("genres")
 }
 
+model Album {
+  id          String   @id @default(cuid())
+  title       String
+  artistId    String
+  coverUrl    String?
+  description String?
+  createdAt   DateTime @default(now())
+
+  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  songs  Song[]
+
+  @@index([artistId, title])
+  @@map("albums")
+}
+
 model Song {
-  id              String      @id @default(uuid())
-  title           String
-  titleAscii      String
-  slug            String      @unique
-  artistId        String
-  artist          Artist      @relation(fields: [artistId], references: [id], onDelete: Cascade)
-  albumId         String?
-  album           Album?      @relation(fields: [albumId], references: [id], onDelete: SetNull)
-  genreId         String?
-  genre           Genre?      @relation(fields: [genreId], references: [id], onDelete: SetNull)
-  audioUrl        String
-  coverUrl        String?
-  durationSeconds Int         @default(0)
-  bitrateKbps     Int         @default(320)
-  lyricsLrc       String?     // Synchronized LRC Lyric format
-  playCount       Int         @default(0)
-  playCountMonth  Int         @default(0)
-  downloadCount   Int         @default(0)
-  isBroken        Boolean     @default(false)
-  status          SongStatus  @default(ACTIVE)
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  id            String     @id @default(cuid())
+  videoId       String?    @unique
+  title         String
+  titleAscii    String
+  slug          String
+  artistId      String
+  genreId       String?
+  albumId       String?
+  durationSec   Int
+  audioUrl      String
+  coverUrl      String?
+  thumbnailUrl  String?
+  sourceUrl     String?
+  trimStart     Int        @default(0)
+  trimEnd       Int        @default(0)
+  playCount     Int        @default(0)
+  downloadCount Int        @default(0)
+  isBroken      Boolean    @default(false)
+  status        SongStatus @default(ACTIVE)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
 
-  playlistItems   PlaylistItem[]
-  comments        Comment[]
-  gifts           MusicGift[]
-  listeningHistory UserHistory[]
+  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  genre  Genre? @relation(fields: [genreId], references: [id], onDelete: SetNull)
+  album  Album? @relation(fields: [albumId], references: [id], onDelete: SetNull)
 
-  @@index([titleAscii])
-  @@index([playCount(sort: Desc)])
-  @@index([downloadCount(sort: Desc)])
+  playlistSongs PlaylistSong[]
+  comments      Comment[]
+
+  @@unique([videoId, trimStart, trimEnd])
+  @@index([title, artistId])
+  @@index([createdAt])
   @@map("songs")
 }
 
 model Playlist {
-  id          String         @id @default(uuid())
+  id          String       @id @default(cuid())
   userId      String
-  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   name        String
   description String?
-  isPublic    Boolean        @default(false)
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
-  items       PlaylistItem[]
+  user  User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  songs PlaylistSong[]
 
+  @@index([userId, createdAt])
   @@map("playlists")
 }
 
-model PlaylistItem {
-  id          String    @id @default(uuid())
-  playlistId  String
-  playlist    Playlist  @relation(fields: [playlistId], references: [id], onDelete: Cascade)
-  songId      String
-  song        Song      @relation(fields: [songId], references: [id], onDelete: Cascade)
-  position    Int       @default(0)
-  addedAt     DateTime  @default(now())
+model PlaylistSong {
+  id         String   @id @default(cuid())
+  playlistId String
+  songId     String
+  position   Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  playlist Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  song     Song     @relation(fields: [songId], references: [id], onDelete: Cascade)
 
   @@unique([playlistId, songId])
-  @@map("playlist_items")
+  @@index([playlistId, position])
+  @@map("playlist_songs")
 }
 
 model Comment {
-  id        String   @id @default(uuid())
+  id        String   @id @default(cuid())
   songId    String
-  song      Song     @relation(fields: [songId], references: [id], onDelete: Cascade)
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   content   String
   createdAt DateTime @default(now())
 
+  song Song @relation(fields: [songId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([songId, createdAt])
   @@map("comments")
 }
 
-model MusicGift {
-  id             String    @id @default(uuid())
-  giftCode       String    @unique
-  songId         String
-  song           Song      @relation(fields: [songId], references: [id], onDelete: Cascade)
-  senderId       String?
-  sender         User?     @relation("SentGifts", fields: [senderId], references: [id], onDelete: SetNull)
-  senderName     String
-  senderEmail    String
-  recipientName  String
-  recipientEmail String
-  message        String
-  sentAt         DateTime  @default(now())
-  viewedAt       DateTime?
+model SyncLog {
+  id             String   @id @default(cuid())
+  idempotencyKey String   @unique
+  payloadHash    String
+  status         String
+  error          String?
+  createdAt      DateTime @default(now())
 
-  recipientId    String?
-  recipient      User?     @relation("ReceivedGifts", fields: [recipientId], references: [id], onDelete: SetNull)
-
-  @@index([giftCode])
-  @@map("music_gifts")
-}
-
-model UserHistory {
-  id        String   @id @default(uuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  songId    String
-  song      Song     @relation(fields: [songId], references: [id], onDelete: Cascade)
-  playedAt  DateTime @default(now())
-
-  @@map("user_history")
+  @@index([createdAt])
+  @@map("sync_logs")
 }

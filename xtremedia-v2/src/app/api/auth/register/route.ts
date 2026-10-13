@@ -1,63 +1,54 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { db } from '@/lib/db';
-import { createToken, AUTH_COOKIE_NAME } from '@/lib/auth';
+import { createToken, AUTH_COOKIE_NAME, getSessionCookieOptions } from '@/lib/auth';
+import { enforceRateLimit, parseJsonBody } from '@/lib/security';
+
+const registerSchema = z.object({
+  username: z.string().trim().min(3).max(32).regex(/^[a-zA-Z0-9_.-]+$/),
+  email: z.string().trim().email().max(255),
+  password: z.string().min(8).max(128),
+  displayName: z.string().trim().max(80).optional(),
+});
 
 export async function POST(request: NextRequest) {
+  const rateLimitResponse = enforceRateLimit(request, 5, 60_000, 'auth');
+  if (rateLimitResponse) {
+    return rateLimitResponse;
+  }
+
   try {
-    const body = await request.json();
-    const { username, email, password, displayName } = body;
-
-    // Validation
-    if (!username || typeof username !== 'string' || username.trim().length < 3) {
-      return NextResponse.json(
-        { success: false, error: 'Tên đăng nhập phải có ít nhất 3 ký tự' },
-        { status: 400 }
-      );
+    const bodyResult = await parseJsonBody(request, registerSchema);
+    if (!bodyResult.ok) {
+      return bodyResult.response;
     }
 
-    if (!email || typeof email !== 'string' || !email.includes('@')) {
-      return NextResponse.json(
-        { success: false, error: 'Địa chỉ email không hợp lệ' },
-        { status: 400 }
-      );
-    }
-
-    if (!password || typeof password !== 'string' || password.length < 6) {
-      return NextResponse.json(
-        { success: false, error: 'Mật khẩu phải có ít nhất 6 ký tự' },
-        { status: 400 }
-      );
-    }
-
+    const { username, email, password, displayName } = bodyResult.data;
     const cleanUsername = username.trim().toLowerCase();
     const cleanEmail = email.trim().toLowerCase();
 
-    // Check duplicate username
-    if (db.findUserByUsername(cleanUsername)) {
+    if (await db.findUserByUsername(cleanUsername)) {
       return NextResponse.json(
         { success: false, error: 'Tên đăng nhập này đã được sử dụng. Vui lòng chọn tên khác.' },
         { status: 400 }
       );
     }
 
-    // Check duplicate email
-    if (db.findUserByEmail(cleanEmail)) {
+    if (await db.findUserByEmail(cleanEmail)) {
       return NextResponse.json(
         { success: false, error: 'Email này đã được đăng ký. Vui lòng sử dụng email khác.' },
         { status: 400 }
       );
     }
 
-    // Create user
-    const newUser = db.createUser({
+    const newUser = await db.createUser({
       username: username.trim(),
       email: cleanEmail,
-      password: password,
+      password,
       displayName: displayName ? displayName.trim() : username.trim(),
       role: 'USER',
     });
 
-    // Create session token
     const token = createToken({
       sub: newUser.id,
       username: newUser.username,
@@ -70,15 +61,10 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
 
-    // Set HttpOnly cookie
     response.cookies.set({
+      ...getSessionCookieOptions(),
       name: AUTH_COOKIE_NAME,
       value: token,
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 7 * 24 * 3600, // 7 days
     });
 
     return response;

@@ -1,37 +1,53 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { db } from '@/lib/db';
+import { enforceRateLimit, parseJsonBody } from '@/lib/security';
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const song = db.getSongById(id);
+  const song = await db.getSongById(id);
   if (!song) {
     return NextResponse.json({ error: 'Song not found' }, { status: 404 });
   }
   return NextResponse.json(song);
 }
 
+const songActionSchema = z.object({
+  action: z.enum(['play', 'download', 'report_broken']),
+});
+
 export async function POST(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const rateLimitResponse = enforceRateLimit(request, 120, 60_000, 'public-api');
+  if (rateLimitResponse) {
+    return rateLimitResponse;
+  }
+
   const { id } = await params;
-  const body = await request.json();
+  const bodyResult = await parseJsonBody(request, songActionSchema);
+  if (!bodyResult.ok) {
+    return bodyResult.response;
+  }
 
-  if (body.action === 'play') {
-    const updated = db.incrementPlay(id);
+  const { action } = bodyResult.data;
+
+  if (action === 'play') {
+    const updated = await db.incrementPlay(id);
     return NextResponse.json({ success: true, song: updated });
   }
 
-  if (body.action === 'download') {
-    const updated = db.incrementDownload(id);
+  if (action === 'download') {
+    const updated = await db.incrementDownload(id);
     return NextResponse.json({ success: true, song: updated });
   }
 
-  if (body.action === 'report_broken') {
-    const success = db.reportBroken(id);
+  if (action === 'report_broken') {
+    const success = await db.reportBroken(id);
     return NextResponse.json({ success, message: 'Đã báo link hỏng thành công' });
   }
 

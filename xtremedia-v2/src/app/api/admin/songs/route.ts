@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { db } from '@/lib/db';
 import { verifyAdminRequest, AUTH_COOKIE_NAME } from '@/lib/auth';
 import { Song } from '@/lib/types';
+import { enforceAdminOrigin, enforceRateLimit, isHttpsUrl, parseJsonBody } from '@/lib/security';
 
 function removeVietnameseTones(str: string): string {
   return str
@@ -21,34 +23,59 @@ function generateSlug(text: string): string {
 
 export async function GET(request: NextRequest) {
   const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
-  const auth = verifyAdminRequest(token, (id) => db.findUserById(id));
+  const auth = await verifyAdminRequest(token, async (id) => db.findUserById(id));
   if (!auth.authorized) {
     return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
   }
 
   const { searchParams } = new URL(request.url);
   const search = searchParams.get('q') || undefined;
-  const songs = db.getSongs({ search });
+  const songs = await db.getSongs({ search });
 
   return NextResponse.json({ success: true, count: songs.length, songs });
 }
 
+const adminSongSchema = z.object({
+  title: z.string().trim().min(1).max(180),
+  artistName: z.string().trim().min(1).max(120),
+  genreName: z.string().trim().max(80).optional(),
+  albumTitle: z.string().trim().max(160).optional(),
+  audioUrl: z.string().trim().min(1).max(2048),
+  coverUrl: z.string().trim().max(2048).optional(),
+  durationSeconds: z.union([z.number(), z.string()]).optional(),
+  bitrateKbps: z.union([z.number(), z.string()]).optional(),
+  lyricsLrc: z.string().trim().max(20000).optional(),
+});
+
 export async function POST(request: NextRequest) {
+  const rateLimitResponse = enforceRateLimit(request, 30, 60_000, 'admin-songs');
+  if (rateLimitResponse) {
+    return rateLimitResponse;
+  }
+
   const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
-  const auth = verifyAdminRequest(token, (id) => db.findUserById(id));
+  const auth = await verifyAdminRequest(token, async (id) => db.findUserById(id));
   if (!auth.authorized) {
     return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
   }
 
-  try {
-    const body = await request.json();
-    const { title, artistName, genreName, albumTitle, audioUrl, coverUrl, durationSeconds, bitrateKbps, lyricsLrc } = body;
+  const originResponse = enforceAdminOrigin(request);
+  if (originResponse) {
+    return originResponse;
+  }
 
-    if (!title || !artistName || !audioUrl) {
-      return NextResponse.json(
-        { success: false, error: 'Tiêu đề, ca sĩ và liên kết âm thanh là bắt buộc' },
-        { status: 400 }
-      );
+  try {
+    const bodyResult = await parseJsonBody(request, adminSongSchema);
+    if (!bodyResult.ok) {
+      return bodyResult.response;
+    }
+
+    const { title, artistName, genreName, albumTitle, audioUrl, coverUrl, durationSeconds, bitrateKbps, lyricsLrc } = bodyResult.data;
+    if (!isHttpsUrl(audioUrl)) {
+      return NextResponse.json({ success: false, error: 'audioUrl phải là URL https hợp lệ' }, { status: 400 });
+    }
+    if (coverUrl && !isHttpsUrl(coverUrl)) {
+      return NextResponse.json({ success: false, error: 'coverUrl phải là URL https hợp lệ' }, { status: 400 });
     }
 
     const cleanTitle = title.trim();
@@ -57,9 +84,9 @@ export async function POST(request: NextRequest) {
     const slug = generateSlug(cleanTitle);
 
     // Find or create artist
-    let artist = db.getArtists().find((a) => a.name.toLowerCase() === cleanArtist.toLowerCase());
+    let artist = (await db.getArtists()).find((a) => a.name.toLowerCase() === cleanArtist.toLowerCase());
     if (!artist) {
-      artist = db.addArtist({
+      artist = await db.addArtist({
         id: 'artist-' + Date.now(),
         name: cleanArtist,
         nameAscii: removeVietnameseTones(cleanArtist),
@@ -72,13 +99,13 @@ export async function POST(request: NextRequest) {
 
     // Find or create genre
     const cleanGenre = (genreName || 'Nhạc Trẻ V-Pop').trim();
-    let genre = db.getGenres().find((g) => g.name.toLowerCase() === cleanGenre.toLowerCase());
+    let genre = (await db.getGenres()).find((g) => g.name.toLowerCase() === cleanGenre.toLowerCase());
     if (!genre) {
-      genre = db.addGenre({
+      genre = await db.addGenre({
         id: 'genre-' + Date.now(),
         name: cleanGenre,
         slug: generateSlug(cleanGenre),
-        sortOrder: db.getGenres().length + 1,
+        sortOrder: (await db.getGenres()).length + 1,
       });
     }
 
@@ -108,7 +135,7 @@ export async function POST(request: NextRequest) {
       createdAt: new Date().toISOString(),
     };
 
-    db.addSong(newSong);
+    await db.addSong(newSong);
 
     return NextResponse.json({ success: true, song: newSong, message: 'Thêm bài hát mới thành công!' }, { status: 201 });
   } catch (err: unknown) {

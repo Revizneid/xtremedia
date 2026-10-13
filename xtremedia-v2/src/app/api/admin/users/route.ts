@@ -1,40 +1,51 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { db } from '@/lib/db';
 import { verifyAdminRequest, AUTH_COOKIE_NAME } from '@/lib/auth';
 import { Role } from '@/lib/types';
+import { enforceAdminOrigin, enforceRateLimit, parseJsonBody } from '@/lib/security';
 
 export async function GET(request: NextRequest) {
   const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
-  const auth = verifyAdminRequest(token, (uid) => db.findUserById(uid));
+  const auth = await verifyAdminRequest(token, async (uid) => db.findUserById(uid));
   if (!auth.authorized) {
     return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
   }
 
-  const users = db.getUsers();
+  const users = await db.getUsers();
   return NextResponse.json({ success: true, count: users.length, users });
 }
 
+const adminUserRoleSchema = z.object({
+  userId: z.string().trim().min(1).max(120),
+  role: z.enum(['USER', 'MODERATOR', 'ADMIN']),
+});
+
 export async function PUT(request: NextRequest) {
+  const rateLimitResponse = enforceRateLimit(request, 30, 60_000, 'admin-users');
+  if (rateLimitResponse) {
+    return rateLimitResponse;
+  }
+
   const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
-  const auth = verifyAdminRequest(token, (uid) => db.findUserById(uid));
+  const auth = await verifyAdminRequest(token, async (uid) => db.findUserById(uid));
   if (!auth.authorized) {
     return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
   }
 
+  const originResponse = enforceAdminOrigin(request);
+  if (originResponse) {
+    return originResponse;
+  }
+
   try {
-    const body = await request.json();
-    const { userId, role } = body;
-
-    if (!userId || !role) {
-      return NextResponse.json({ success: false, error: 'Thiếu thông tin userId hoặc role' }, { status: 400 });
+    const bodyResult = await parseJsonBody(request, adminUserRoleSchema);
+    if (!bodyResult.ok) {
+      return bodyResult.response;
     }
 
-    const validRoles: Role[] = ['USER', 'MODERATOR', 'ADMIN'];
-    if (!validRoles.includes(role)) {
-      return NextResponse.json({ success: false, error: 'Vai trò người dùng không hợp lệ' }, { status: 400 });
-    }
-
-    const updated = db.updateUser(userId, { role });
+    const { userId, role } = bodyResult.data;
+    const updated = await db.updateUser(userId, { role });
     if (!updated) {
       return NextResponse.json({ success: false, error: 'Không tìm thấy người dùng' }, { status: 404 });
     }
