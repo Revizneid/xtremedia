@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Disc3, Plus, Trash2, X } from 'lucide-react';
+import { Disc3, Plus, Trash2, X, Pencil } from 'lucide-react';
 import { Artist, Album } from '@/lib/types';
 
 export default function AdminAlbumsPage() {
@@ -9,10 +9,19 @@ export default function AdminAlbumsPage() {
   const [artists, setArtists] = useState<Artist[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingAlbum, setEditingAlbum] = useState<Album | null>(null);
   const [title, setTitle] = useState('');
   const [artistId, setArtistId] = useState('');
   const [coverUrl, setCoverUrl] = useState('');
   const [description, setDescription] = useState('');
+
+  const resetAlbumForm = () => {
+    setEditingAlbum(null);
+    setTitle('');
+    setArtistId('');
+    setCoverUrl('');
+    setDescription('');
+  };
 
   const fetchAlbums = async () => {
     setLoading(true);
@@ -45,25 +54,42 @@ export default function AdminAlbumsPage() {
     fetchAlbums();
   }, []);
 
-  const handleCreateAlbum = async (e: React.FormEvent) => {
+  const openCreateAlbumModal = () => {
+    resetAlbumForm();
+    if (artists[0]?.id) {
+      setArtistId(artists[0].id);
+    }
+    setIsModalOpen(true);
+  };
+
+  const openEditAlbumModal = (album: Album) => {
+    setEditingAlbum(album);
+    setTitle(album.title);
+    setArtistId(album.artistId);
+    setCoverUrl(album.coverUrl || '');
+    setDescription(album.description || '');
+    setIsModalOpen(true);
+  };
+
+  const handleSaveAlbum = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !artistId) return;
 
-    const res = await fetch('/api/admin/albums', {
-      method: 'POST',
+    const payload = {
+      title: title.trim(),
+      artistId,
+      coverUrl: coverUrl.trim() || undefined,
+      description: description.trim() || undefined,
+    };
+
+    const res = await fetch(editingAlbum ? `/api/admin/albums/${editingAlbum.id}` : '/api/admin/albums', {
+      method: editingAlbum ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        title: title.trim(),
-        artistId,
-        coverUrl: coverUrl.trim() || undefined,
-        description: description.trim() || undefined,
-      }),
+      body: JSON.stringify(payload),
     });
 
     if (res.ok) {
-      setTitle('');
-      setCoverUrl('');
-      setDescription('');
+      resetAlbumForm();
       setIsModalOpen(false);
       fetchAlbums();
     }
@@ -86,7 +112,7 @@ export default function AdminAlbumsPage() {
         </div>
 
         <button
-          onClick={() => setIsModalOpen(true)}
+          onClick={openCreateAlbumModal}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -116,12 +142,17 @@ export default function AdminAlbumsPage() {
               <div style={{ padding: '16px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
                   <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#FFF', margin: 0 }}>{album.title}</h3>
-                  <button onClick={() => handleDeleteAlbum(album.id)} style={{ background: 'transparent', border: 'none', color: '#f87171', cursor: 'pointer' }}>
-                    <Trash2 size={16} />
-                  </button>
                 </div>
                 <div style={{ marginTop: '8px', color: 'var(--text-secondary)', fontSize: '13px' }}>{album.artistName || 'Unknown Artist'}</div>
                 <p style={{ marginTop: '10px', color: 'var(--text-muted)', fontSize: '12px', lineHeight: 1.5 }}>{album.description || 'Không có mô tả'}</p>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px', gap: '8px' }}>
+                  <button onClick={() => openEditAlbumModal(album)} style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', background: 'rgba(99, 102, 241, 0.12)', border: '1px solid rgba(99, 102, 241, 0.4)', color: '#dfe7ff', borderRadius: '8px', padding: '8px 10px', cursor: 'pointer' }}>
+                    <Pencil size={14} /> Sửa
+                  </button>
+                  <button onClick={() => handleDeleteAlbum(album.id)} style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.4)', color: '#fca5a5', borderRadius: '8px', padding: '8px 10px', cursor: 'pointer' }}>
+                    <Trash2 size={14} /> Xóa
+                  </button>
+                </div>
               </div>
             </div>
           ))}
@@ -132,13 +163,13 @@ export default function AdminAlbumsPage() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(5,7,12,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', zIndex: 100 }} onClick={() => setIsModalOpen(false)}>
           <div style={{ width: '100%', maxWidth: '500px', background: '#0e131f', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '24px', padding: '24px' }} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
-              <h3 style={{ color: '#FFF', margin: 0, fontSize: '18px', fontWeight: 700 }}>Tạo Album Mới</h3>
+              <h3 style={{ color: '#FFF', margin: 0, fontSize: '18px', fontWeight: 700 }}>{editingAlbum ? 'Chỉnh Sửa Album' : 'Tạo Album Mới'}</h3>
               <button style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }} onClick={() => setIsModalOpen(false)}>
                 <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={handleCreateAlbum} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <form onSubmit={handleSaveAlbum} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
                 <label style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '6px' }}>Tên album *</label>
                 <input value={title} onChange={(e) => setTitle(e.target.value)} required style={{ width: '100%', borderRadius: '10px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-subtle)', color: '#FFF', padding: '10px 12px' }} />
@@ -165,7 +196,7 @@ export default function AdminAlbumsPage() {
               </div>
 
               <button type="submit" style={{ border: 'none', borderRadius: '12px', background: 'var(--accent-gradient)', color: '#FFF', fontWeight: 700, padding: '12px 18px', cursor: 'pointer' }}>
-                Lưu Album
+                {editingAlbum ? 'Cập Nhật Album' : 'Lưu Album'}
               </button>
             </form>
           </div>

@@ -4,6 +4,8 @@ const buildFallbacks = {
   JWT_SECRET: 'development_jwt_secret_for_build_only_change_in_production',
   STUDIO_SYNC_SECRET: 'development_studio_sync_secret_for_build_only_change_in_production',
   NEXT_PUBLIC_APP_URL: 'http://localhost:3000',
+  DATABASE_URL: '',
+  DIRECT_URL: '',
 } as const;
 
 const envSchema = z.object({
@@ -39,6 +41,7 @@ export function parseEnv(rawEnv: Record<string, string | undefined> = process.en
 }
 
 export const env = parseEnv();
+export const hasDatabaseConfig = Boolean(env.DATABASE_URL?.trim());
 export const runtimeEnv = {
   NODE_ENV: process.env.NODE_ENV ?? 'development',
   PATH: process.env.PATH ?? '',

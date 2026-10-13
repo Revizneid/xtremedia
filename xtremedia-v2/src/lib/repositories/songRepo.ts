@@ -139,16 +139,98 @@ export const songRepo = {
   },
 
   async updateSong(id: string, updates: Partial<Song>): Promise<Song | null> {
-    const record = await prisma.song.findUnique({ where: { id } });
+    const record = await prisma.song.findUnique({ where: { id }, include: songInclude });
     if (!record) return null;
 
+    const sanitizedTitle = updates.title?.trim() || record.title;
+    const artistName = (updates.artistName || record.artist?.name || 'Unknown Artist').trim();
+    const normalizedGenreName = (updates.genreName || record.genre?.name || 'Nhạc Trẻ V-Pop').trim();
+    const albumTitle = updates.albumTitle !== undefined ? updates.albumTitle?.trim() || null : record.album?.title ?? null;
+
+    let artistId = record.artistId;
+    if (updates.artistName || updates.artistId) {
+      const existingArtist = updates.artistId
+        ? await prisma.artist.findUnique({ where: { id: updates.artistId } })
+        : await prisma.artist.findUnique({ where: { name: artistName } });
+
+      if (existingArtist) {
+        artistId = existingArtist.id;
+      } else {
+        const createdArtist = await prisma.artist.create({
+          data: {
+            id: updates.artistId || `artist-${Date.now()}`,
+            name: artistName,
+            slug: slugify(artistName),
+            avatarUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=500&q=80',
+            country: 'VIETNAM',
+            viewCount: 0,
+          },
+        });
+        artistId = createdArtist.id;
+      }
+    }
+
+    let genreId = record.genreId ?? null;
+    if (updates.genreName !== undefined || updates.genreId !== undefined) {
+      const nextGenreName = (updates.genreName || normalizedGenreName).trim();
+      const existingGenre = updates.genreId
+        ? await prisma.genre.findUnique({ where: { id: updates.genreId } })
+        : await prisma.genre.findUnique({ where: { name: nextGenreName } });
+
+      if (existingGenre) {
+        genreId = existingGenre.id;
+      } else {
+        const createdGenre = await prisma.genre.create({
+          data: {
+            id: updates.genreId || `genre-${Date.now()}`,
+            name: nextGenreName,
+            slug: slugify(nextGenreName),
+            sortOrder: 0,
+          },
+        });
+        genreId = createdGenre.id;
+      }
+    }
+
+    let albumId = record.albumId ?? null;
+    const nextAlbumTitle = albumTitle;
+    if (updates.albumTitle !== undefined || updates.albumId !== undefined) {
+      if (nextAlbumTitle) {
+        const existingAlbum = updates.albumId
+          ? await prisma.album.findUnique({ where: { id: updates.albumId } })
+          : await prisma.album.findFirst({
+              where: {
+                title: nextAlbumTitle,
+                artistId,
+              },
+            });
+
+        if (existingAlbum) {
+          albumId = existingAlbum.id;
+        } else {
+          const createdAlbum = await prisma.album.create({
+            data: {
+              id: updates.albumId || `album-${Date.now()}`,
+              title: nextAlbumTitle,
+              artistId,
+              coverUrl: updates.coverUrl || record.coverUrl || null,
+              description: null,
+            },
+          });
+          albumId = createdAlbum.id;
+        }
+      } else {
+        albumId = null;
+      }
+    }
+
     const data: Prisma.SongUpdateInput = {
-      ...(updates.title ? { title: updates.title, titleAscii: updates.titleAscii || updates.title, slug: updates.slug || slugify(updates.title) } : {}),
-      ...(updates.artistId ? { artistId: updates.artistId } : {}),
-      ...(updates.genreId !== undefined ? { genreId: updates.genreId ?? null } : {}),
-      ...(updates.albumId !== undefined ? { albumId: updates.albumId ?? null } : {}),
+      ...(updates.title ? { title: sanitizedTitle, titleAscii: updates.titleAscii || sanitizedTitle, slug: updates.slug || slugify(sanitizedTitle) } : {}),
+      ...(updates.artistName || updates.artistId ? { artistId } : {}),
+      ...(updates.genreName !== undefined || updates.genreId !== undefined ? { genreId: genreId ?? null } : {}),
+      ...(updates.albumTitle !== undefined || updates.albumId !== undefined ? { albumId: albumId ?? null } : {}),
       ...(updates.durationSeconds !== undefined ? { durationSec: updates.durationSeconds } : {}),
-      ...(updates.audioUrl ? { audioUrl: updates.audioUrl } : {}),
+      ...(updates.audioUrl ? { audioUrl: updates.audioUrl, sourceUrl: updates.audioUrl } : {}),
       ...(updates.coverUrl !== undefined ? { coverUrl: updates.coverUrl ?? null, thumbnailUrl: updates.coverUrl ?? null } : {}),
       ...(updates.status ? { status: updates.status as SongStatus } : {}),
       ...(updates.isBroken !== undefined ? { isBroken: updates.isBroken } : {}),

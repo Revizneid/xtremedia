@@ -38,6 +38,11 @@ export const artistRepo = {
   },
 
   async addArtist(artist: Artist): Promise<Artist> {
+    const existing = await prisma.artist.findUnique({ where: { name: artist.name } });
+    if (existing) {
+      return toLegacyArtist(existing);
+    }
+
     const created = await prisma.artist.create({
       data: {
         id: artist.id,
@@ -50,6 +55,27 @@ export const artistRepo = {
       },
     });
     return toLegacyArtist(created);
+  },
+
+  async updateArtist(id: string, updates: Partial<Artist>): Promise<Artist | null> {
+    const existing = await prisma.artist.findUnique({ where: { id } });
+    if (!existing) {
+      return null;
+    }
+
+    const nextName = updates.name?.trim() || existing.name;
+    const updated = await prisma.artist.update({
+      where: { id },
+      data: {
+        ...(updates.name ? { name: nextName, slug: slugify(nextName) } : {}),
+        ...(updates.avatarUrl !== undefined ? { avatarUrl: updates.avatarUrl || null } : {}),
+        ...(updates.bio !== undefined ? { bio: updates.bio || null } : {}),
+        ...(updates.country ? { country: updates.country } : {}),
+        ...(updates.viewCount !== undefined ? { viewCount: updates.viewCount } : {}),
+      },
+    });
+
+    return toLegacyArtist(updated);
   },
 
   async deleteArtist(id: string): Promise<boolean> {

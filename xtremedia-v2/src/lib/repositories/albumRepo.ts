@@ -38,6 +38,17 @@ export const albumRepo = {
   },
 
   async addAlbum(album: Album): Promise<Album> {
+    const existing = await prisma.album.findFirst({
+      where: {
+        title: album.title,
+        artistId: album.artistId,
+      },
+    });
+
+    if (existing) {
+      return toLegacyAlbum(existing);
+    }
+
     const created = await prisma.album.create({
       data: {
         id: album.id,
@@ -48,6 +59,26 @@ export const albumRepo = {
       },
     });
     return toLegacyAlbum(created);
+  },
+
+  async updateAlbum(id: string, updates: Partial<Album>): Promise<Album | null> {
+    const existing = await prisma.album.findUnique({ where: { id } });
+    if (!existing) {
+      return null;
+    }
+
+    const nextTitle = updates.title?.trim() || existing.title;
+    const updated = await prisma.album.update({
+      where: { id },
+      data: {
+        ...(updates.title ? { title: nextTitle } : {}),
+        ...(updates.artistId ? { artistId: updates.artistId } : {}),
+        ...(updates.coverUrl !== undefined ? { coverUrl: updates.coverUrl || null } : {}),
+        ...(updates.description !== undefined ? { description: updates.description || null } : {}),
+      },
+    });
+
+    return toLegacyAlbum(updated);
   },
 
   async deleteAlbum(id: string): Promise<boolean> {

@@ -27,6 +27,11 @@ export const genreRepo = {
   },
 
   async addGenre(genre: Genre): Promise<Genre> {
+    const existing = await prisma.genre.findUnique({ where: { name: genre.name } });
+    if (existing) {
+      return toLegacyGenre(existing);
+    }
+
     const created = await prisma.genre.create({
       data: {
         id: genre.id,

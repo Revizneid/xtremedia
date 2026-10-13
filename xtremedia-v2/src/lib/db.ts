@@ -52,6 +52,9 @@ export const db = {
   async addArtist(artist: Artist): Promise<Artist> {
     return artistRepo.addArtist(artist);
   },
+  async updateArtist(id: string, updates: Partial<Artist>): Promise<Artist | null> {
+    return artistRepo.updateArtist(id, updates);
+  },
   async deleteArtist(id: string): Promise<boolean> {
     return artistRepo.deleteArtist(id);
   },
@@ -64,6 +67,9 @@ export const db = {
   },
   async addAlbum(album: Album): Promise<Album> {
     return albumRepo.addAlbum(album);
+  },
+  async updateAlbum(id: string, updates: Partial<Album>): Promise<Album | null> {
+    return albumRepo.updateAlbum(id, updates);
   },
   async deleteAlbum(id: string): Promise<boolean> {
     return albumRepo.deleteAlbum(id);
