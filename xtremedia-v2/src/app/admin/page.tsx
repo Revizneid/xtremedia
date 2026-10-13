@@ -40,6 +40,18 @@ interface StatsData {
     artistName: string;
     audioUrl: string;
   }>;
+  syncSummary?: {
+    total: number;
+    success: number;
+    reused: number;
+    failed: number;
+    recent: Array<{
+      id: string;
+      status: string;
+      createdAt: string;
+      payloadHash: string;
+    }>;
+  };
 }
 
 export default function AdminDashboardPage() {
@@ -356,6 +368,55 @@ export default function AdminDashboardPage() {
           </div>
         </div>
       </div>
+
+      {stats?.syncSummary && (
+        <div
+          style={{
+            background: 'rgba(255, 255, 255, 0.02)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: '20px',
+            padding: '24px',
+            marginBottom: '28px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
+            <div>
+              <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#FFF', margin: '0 0 4px 0' }}>Studio Sync Status</h2>
+              <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)' }}>
+                Dữ liệu được đồng bộ từ XtreMedia Studio và trạng thái import gần nhất.
+              </p>
+            </div>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+              {stats.syncSummary.total} lần đồng bộ
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px', marginBottom: '18px' }}>
+            {[
+              { label: 'Success', value: stats.syncSummary.success, tone: '#10b981' },
+              { label: 'Reused', value: stats.syncSummary.reused, tone: '#8b5cf6' },
+              { label: 'Failed', value: stats.syncSummary.failed, tone: '#ef4444' },
+            ].map((item) => (
+              <div key={item.label} style={{ padding: '16px 18px', borderRadius: '14px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-subtle)' }}>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.6px' }}>{item.label}</div>
+                <div style={{ fontSize: '26px', fontWeight: 800, color: item.tone, marginTop: '8px' }}>{item.value}</div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display: 'grid', gap: '10px' }}>
+            {stats.syncSummary.recent.map((log) => (
+              <div key={log.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '12px 14px', borderRadius: '12px', background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.04)' }}>
+                <div>
+                  <div style={{ color: '#FFF', fontWeight: 600, fontSize: '13px' }}>{log.status}</div>
+                  <div style={{ color: 'var(--text-muted)', fontSize: '12px' }}>{new Date(log.createdAt).toLocaleString('vi-VN')}</div>
+                </div>
+                <div style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>{log.payloadHash.slice(0, 12)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Top Played Songs Table */}
       <div

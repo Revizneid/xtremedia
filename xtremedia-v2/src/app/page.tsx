@@ -15,17 +15,32 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
   const [songsList, setSongsList] = useState(INITIAL_SONGS);
+  const [featuredSong, setFeaturedSong] = useState(INITIAL_SONGS[0]);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   const { playSong } = useAudioPlayer();
 
-  // Load persistent songs from API on mount
+  // Load persistent songs and featured banner config from API on mount
   React.useEffect(() => {
-    fetch('/api/songs')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.songs && data.songs.length > 0) {
-          setSongsList(data.songs);
+    Promise.all([
+      fetch('/api/songs').then((res) => res.json()),
+      fetch('/api/hero').then((res) => res.json()),
+    ])
+      .then(([songsData, heroData]) => {
+        const songs = songsData.songs || [];
+        if (songs.length > 0) {
+          setSongsList(songs);
+          const heroSong = heroData?.config?.songId
+            ? songs.find((song: any) => song.id === heroData.config.songId)
+            : null;
+          setFeaturedSong(heroSong || songs[0] || INITIAL_SONGS[0]);
+        }
+
+        if (heroData?.config?.songId && songsData.songs?.length) {
+          const matchedSong = songsData.songs.find((song: any) => song.id === heroData.config.songId);
+          if (matchedSong) {
+            setFeaturedSong(matchedSong);
+          }
         }
       })
       .catch((err) => console.warn('Could not fetch songs from API, using defaults:', err));
@@ -57,8 +72,6 @@ export default function Home() {
 
     return list;
   }, [selectedGenre, searchQuery, currentTab]);
-
-  const featuredSong = INITIAL_SONGS[0];
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-primary)' }}>

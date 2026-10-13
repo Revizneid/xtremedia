@@ -18,6 +18,7 @@ import {
   ChevronRight,
   Menu,
   X,
+  Disc3,
 } from 'lucide-react';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -29,6 +30,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const navItems = [
     { label: 'Tổng Quan', href: '/admin', icon: LayoutDashboard },
     { label: 'Quản Lý Bài Hát', href: '/admin/songs', icon: Music },
+    { label: 'Album', href: '/admin/albums', icon: Disc3 },
+    { label: 'Hero Banner', href: '/admin/hero', icon: Sparkles },
     { label: 'Báo Link Hỏng', href: '/admin/broken', icon: AlertTriangle, badge: 'Cần duyệt' },
     { label: 'Ca Sĩ & Thể Loại', href: '/admin/artists', icon: Mic2 },
     { label: 'Thành Viên & RBAC', href: '/admin/users', icon: Users },

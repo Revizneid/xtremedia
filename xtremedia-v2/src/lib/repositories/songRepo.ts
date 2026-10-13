@@ -243,8 +243,15 @@ export const songRepo = {
     totalDownloads: number;
     topSongs: Song[];
     recentBrokenSongs: Song[];
+    syncSummary: {
+      total: number;
+      success: number;
+      reused: number;
+      failed: number;
+      recent: Array<{ id: string; status: string; createdAt: string; payloadHash: string }>;
+    };
   }> {
-    const [totalSongs, totalArtists, totalAlbums, totalGenres, totalUsers, brokenSongs, topSongs, recentBrokenSongs] = await Promise.all([
+    const [totalSongs, totalArtists, totalAlbums, totalGenres, totalUsers, brokenSongs, topSongs, recentBrokenSongs, syncTotal, syncSuccess, syncReused, syncFailed, recentSyncLogs] = await Promise.all([
       prisma.song.count(),
       prisma.artist.count(),
       prisma.album.count(),
@@ -259,6 +266,14 @@ export const songRepo = {
       prisma.song.findMany({
         where: { isBroken: true },
         include: songInclude,
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+      }),
+      prisma.syncLog.count(),
+      prisma.syncLog.count({ where: { status: 'SUCCESS' } }),
+      prisma.syncLog.count({ where: { status: 'REUSED' } }),
+      prisma.syncLog.count({ where: { status: 'FAILED' } }),
+      prisma.syncLog.findMany({
         orderBy: { createdAt: 'desc' },
         take: 5,
       }),
@@ -278,6 +293,18 @@ export const songRepo = {
       totalDownloads: Number(totalDownloads),
       topSongs: topSongs.map(toLegacySong),
       recentBrokenSongs: recentBrokenSongs.map(toLegacySong),
+      syncSummary: {
+        total: syncTotal,
+        success: syncSuccess,
+        reused: syncReused,
+        failed: syncFailed,
+        recent: recentSyncLogs.map((log) => ({
+          id: log.id,
+          status: log.status,
+          createdAt: log.createdAt.toISOString(),
+          payloadHash: log.payloadHash,
+        })),
+      },
     };
   },
 
