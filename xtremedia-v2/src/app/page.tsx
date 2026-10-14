@@ -8,7 +8,7 @@ import SongList from '@/components/SongList';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import { INITIAL_SONGS, INITIAL_ARTISTS, INITIAL_ALBUMS, INITIAL_GENRES } from '@/lib/mockData';
 import { useAudioPlayer } from '@/context/AudioPlayerContext';
-import { Play, Disc, Mic2, Sparkles, Heart, Radio, ListMusic, Volume2 } from 'lucide-react';
+import { Play, Pause, Disc, Mic2, Sparkles, Heart, Radio, ListMusic, Volume2 } from 'lucide-react';
 
 export default function Home() {
   const [currentTab, setCurrentTab] = useState<string>('discover');
@@ -18,7 +18,7 @@ export default function Home() {
   const [featuredSong, setFeaturedSong] = useState(INITIAL_SONGS[0]);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
-  const { playSong } = useAudioPlayer();
+  const { playSong, currentSong, isPlaying, togglePlayPause } = useAudioPlayer();
   const activeSongPool = songsList.length > 0 ? songsList : INITIAL_SONGS;
 
   // Load persistent songs and featured banner config from API on mount
@@ -130,58 +130,72 @@ export default function Home() {
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '20px' }}>
-                    {INITIAL_ALBUMS.map((album) => (
-                      <div
-                        key={album.id}
-                        className="glass-card"
-                        style={{ padding: '16px', cursor: 'pointer' }}
-                        onClick={() => {
-                          const albumSong = activeSongPool.find((s) => s.albumId === album.id) || activeSongPool[0];
-                          if (albumSong) playSong(albumSong, activeSongPool);
-                        }}
-                      >
+                    {INITIAL_ALBUMS.map((album) => {
+                      const albumSong = activeSongPool.find((s) => s.albumId === album.id) || activeSongPool[0];
+                      const isAlbumCurrent = currentSong?.id === albumSong?.id;
+                      const isAlbumPlaying = isAlbumCurrent && isPlaying;
+
+                      return (
                         <div
-                          style={{
-                            position: 'relative',
-                            width: '100%',
-                            aspectRatio: '1',
-                            borderRadius: '12px',
-                            overflow: 'hidden',
-                            marginBottom: '14px',
+                          key={album.id}
+                          className="glass-card"
+                          style={{ padding: '16px', cursor: 'pointer' }}
+                          onClick={() => {
+                            if (!albumSong) return;
+                            if (isAlbumCurrent) {
+                              togglePlayPause();
+                            } else {
+                              playSong(albumSong, activeSongPool);
+                            }
                           }}
                         >
-                          <img
-                            src={album.coverUrl}
-                            alt={album.title}
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                          />
                           <div
                             style={{
-                              position: 'absolute',
-                              bottom: '10px',
-                              right: '10px',
-                              width: '40px',
-                              height: '40px',
-                              borderRadius: '50%',
-                              background: 'var(--accent-gradient)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              boxShadow: '0 4px 15px rgba(0,0,0,0.5)',
+                              position: 'relative',
+                              width: '100%',
+                              aspectRatio: '1',
+                              borderRadius: '12px',
+                              overflow: 'hidden',
+                              marginBottom: '14px',
                             }}
                           >
-                            <Play size={18} fill="#FFF" color="#FFF" style={{ marginLeft: '2px' }} />
+                            <img
+                              src={album.coverUrl}
+                              alt={album.title}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            />
+                            <div
+                              style={{
+                                position: 'absolute',
+                                bottom: '10px',
+                                right: '10px',
+                                width: '40px',
+                                height: '40px',
+                                borderRadius: '50%',
+                                background: 'var(--accent-gradient)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                boxShadow: '0 4px 15px rgba(0,0,0,0.5)',
+                              }}
+                            >
+                              {isAlbumPlaying ? (
+                                <Pause size={18} fill="#FFF" color="#FFF" />
+                              ) : (
+                                <Play size={18} fill="#FFF" color="#FFF" style={{ marginLeft: '2px' }} />
+                              )}
+                            </div>
                           </div>
-                        </div>
 
-                        <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#FFF', marginBottom: '4px' }}>
-                          {album.title}
-                        </h4>
-                        <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                          {album.artistName}
-                        </p>
-                      </div>
-                    ))}
+                          <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#FFF', marginBottom: '4px' }}>
+                            {album.title}
+                          </h4>
+                          <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                            {album.artistName}
+                          </p>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}

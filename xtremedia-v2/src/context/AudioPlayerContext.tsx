@@ -87,57 +87,76 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
   // Synchronized Lyrics
   const [parsedLyrics, setParsedLyrics] = useState<LyricLine[]>([]);
   const [currentLyricIndex, setCurrentLyricIndex] = useState<number>(-1);
+  const parsedLyricsRef = useRef<LyricLine[]>([]);
+  const repeatModeRef = useRef(repeatMode);
+  const nextTrackRef = useRef<() => void>(() => {});
 
-  // Initialize Audio Object on Client
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const audio = new Audio();
-      audioRef.current = audio;
-      audio.volume = volume;
+    parsedLyricsRef.current = parsedLyrics;
+  }, [parsedLyrics]);
 
-      const handleTimeUpdate = () => {
-        const curr = audio.currentTime;
-        setCurrentTime(curr);
+  useEffect(() => {
+    repeatModeRef.current = repeatMode;
+  }, [repeatMode]);
 
-        // Update active lyric
-        if (parsedLyrics.length > 0) {
-          let activeIndex = -1;
-          for (let i = 0; i < parsedLyrics.length; i++) {
-            if (curr >= parsedLyrics[i].time) {
-              activeIndex = i;
-            } else {
-              break;
-            }
-          }
-          setCurrentLyricIndex(activeIndex);
-        }
-      };
-
-      const handleLoadedMetadata = () => {
-        setDuration(audio.duration || 0);
-      };
-
-      const handleEnded = () => {
-        if (repeatMode === 'one') {
-          audio.currentTime = 0;
-          audio.play();
-        } else {
-          nextTrack();
-        }
-      };
-
-      audio.addEventListener('timeupdate', handleTimeUpdate);
-      audio.addEventListener('loadedmetadata', handleLoadedMetadata);
-      audio.addEventListener('ended', handleEnded);
-
-      return () => {
-        audio.removeEventListener('timeupdate', handleTimeUpdate);
-        audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
-        audio.removeEventListener('ended', handleEnded);
-        audio.pause();
-      };
+  // Initialize Audio Object only once on the client
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
     }
-  }, [parsedLyrics, repeatMode]);
+
+    const audio = new Audio();
+    audioRef.current = audio;
+    audio.volume = volume;
+
+    const handleTimeUpdate = () => {
+      const curr = audio.currentTime;
+      setCurrentTime(curr);
+
+      const lines = parsedLyricsRef.current;
+      if (lines.length > 0) {
+        let activeIndex = -1;
+        for (let i = 0; i < lines.length; i++) {
+          if (curr >= lines[i].time) {
+            activeIndex = i;
+          } else {
+            break;
+          }
+        }
+        setCurrentLyricIndex(activeIndex);
+      }
+    };
+
+    const handleLoadedMetadata = () => {
+      setDuration(audio.duration || 0);
+    };
+
+    const handleEnded = () => {
+      if (repeatModeRef.current === 'one') {
+        audio.currentTime = 0;
+        void audio.play().catch((err) => {
+          if (!isExpectedPlaybackAbort(err)) {
+            console.warn('Repeat-one playback failed:', err);
+          }
+        });
+      } else {
+        nextTrackRef.current();
+      }
+    };
+
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('ended', handleEnded);
+
+    return () => {
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('ended', handleEnded);
+      audio.pause();
+      audio.src = '';
+      audioRef.current = null;
+    };
+  }, []);
 
   // Setup MediaSession API
   useEffect(() => {
@@ -192,36 +211,42 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     }
 
     setCurrentSong(song);
+    setIsPlaying(true);
+    setCurrentTime(0);
+    setDuration(0);
+
     audio.preload = 'auto';
+    audio.pause();
+    audio.currentTime = 0;
+    audio.src = primarySource;
+    audio.load();
 
-    if (!audio.paused) {
-      audio.pause();
-    }
+    const startPlayback = () => {
+      void audio.play().then(() => {
+        setIsPlaying(true);
+      }).catch((err) => {
+        if (isExpectedPlaybackAbort(err)) {
+          return;
+        }
 
-    if (audio.src !== primarySource) {
-      audio.src = primarySource;
-      audio.load();
-    }
+        console.warn('Primary audio source failed, retrying with proxy fallback:', err);
+        const fallbackSource = `/api/stream?id=${song.id}`;
+        if (audio.src !== fallbackSource) {
+          audio.src = fallbackSource;
+          audio.load();
+          void audio.play().catch((playError) => {
+            if (!isExpectedPlaybackAbort(playError)) {
+              console.warn('Audio stream fallback failed:', playError);
+            }
+          });
+          return;
+        }
 
-    audio.play().then(() => {
-      setIsPlaying(true);
-    }).catch((err) => {
-      if (isExpectedPlaybackAbort(err)) {
-        return;
-      }
+        setIsPlaying(false);
+      });
+    };
 
-      console.warn('Primary audio source failed, retrying with proxy fallback:', err);
-      const fallbackSource = `/api/stream?id=${song.id}`;
-      if (audio.src !== fallbackSource) {
-        audio.src = fallbackSource;
-        audio.load();
-        audio.play().catch((playError) => {
-          if (!isExpectedPlaybackAbort(playError)) {
-            console.warn('Audio stream fallback failed:', playError);
-          }
-        });
-      }
-    });
+    startPlayback();
 
     fetch(`/api/songs/${song.id}`, {
       method: 'POST',
@@ -293,6 +318,10 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     setQueueIndex(nextIndex);
     playSong(queue[nextIndex]);
   }, [queue, queueIndex, isShuffle, repeatMode, playSong]);
+
+  useEffect(() => {
+    nextTrackRef.current = nextTrack;
+  }, [nextTrack]);
 
   const prevTrack = useCallback(() => {
     if (queue.length === 0) return;

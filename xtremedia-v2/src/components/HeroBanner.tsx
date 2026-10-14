@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Play, Flame, Heart, Share2, Sparkles } from 'lucide-react';
+import { Play, Pause, Flame, Heart, Share2, Sparkles } from 'lucide-react';
 import { Song } from '@/lib/types';
 import { useAudioPlayer } from '@/context/AudioPlayerContext';
 
@@ -12,6 +12,7 @@ interface HeroBannerProps {
 export default function HeroBanner({ featuredSong }: HeroBannerProps) {
   const { playSong, currentSong, isPlaying, togglePlayPause, openGiftModal } = useAudioPlayer();
   const isCurrentActive = currentSong?.id === featuredSong.id;
+  const isCurrentPlaying = isCurrentActive && isPlaying;
 
   return (
     <div
@@ -102,8 +103,12 @@ export default function HeroBanner({ featuredSong }: HeroBannerProps) {
             }}
             style={{ padding: '12px 28px', fontSize: '15px' }}
           >
-            <Play size={18} fill="#FFF" />
-            <span>{isCurrentActive && isPlaying ? 'Tạm Dừng' : 'Phát Ngay'}</span>
+            {isCurrentPlaying ? (
+              <Pause size={18} fill="#FFF" color="#FFF" />
+            ) : (
+              <Play size={18} fill="#FFF" color="#FFF" style={{ marginLeft: '2px' }} />
+            )}
+            <span>{isCurrentPlaying ? 'Tạm Dừng' : 'Phát Ngay'}</span>
           </button>
 
           <button
@@ -121,26 +126,42 @@ export default function HeroBanner({ featuredSong }: HeroBannerProps) {
         style={{
           position: 'relative',
           zIndex: 1,
-          display: 'none',
+          display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
         }}
         className="hero-art-container"
       >
         <div
+          className={`animate-spin-slow ${!isPlaying ? 'paused' : ''}`}
           style={{
+            position: 'relative',
             width: '180px',
             height: '180px',
-            borderRadius: '20px',
+            borderRadius: '50%',
             overflow: 'hidden',
             boxShadow: '0 15px 35px rgba(0,0,0,0.6)',
             border: '2px solid rgba(255, 255, 255, 0.15)',
+            background: '#111827',
           }}
         >
           <img
             src={featuredSong.coverUrl}
             alt={featuredSong.title}
             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+          <div
+            style={{
+              position: 'absolute',
+              inset: '50% auto auto 50%',
+              transform: 'translate(-50%, -50%)',
+              width: '28px',
+              height: '28px',
+              borderRadius: '50%',
+              background: 'rgba(9, 12, 20, 0.9)',
+              border: '2px solid rgba(255, 255, 255, 0.15)',
+              boxShadow: 'inset 0 0 0 2px rgba(255,255,255,0.05)',
+            }}
           />
         </div>
       </div>
