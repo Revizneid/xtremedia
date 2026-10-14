@@ -10,6 +10,7 @@
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test src/**/*.test.ts",
+    "check:deploy": "node scripts/check-deploy-readiness.js",
     "start": "next start",
     "postinstall": "prisma generate",
     "clean:prisma": "node scripts/prepare-prisma.js"
