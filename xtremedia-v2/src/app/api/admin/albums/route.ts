@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { verifyAdminRequest, AUTH_COOKIE_NAME } from '@/lib/auth';
-import { Album } from '@/lib/types';
+import { Album, Song } from '@/lib/types';
 import { enforceAdminOrigin, enforceRateLimit, isHttpsUrl, parseJsonBody } from '@/lib/security';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 const slugify = (value: string): string =>
   value
@@ -32,11 +35,25 @@ export async function GET(request: NextRequest) {
 
   const albums = await db.getAlbums();
   const artists = await db.getArtists();
+  const songs = await db.getSongs();
 
-  const enriched = albums.map((album) => ({
-    ...album,
-    artistName: artists.find((artist) => artist.id === album.artistId)?.name || album.artistName || 'Unknown Artist',
-  }));
+  const songsByAlbum = new Map<string, Song[]>();
+  for (const song of songs) {
+    if (!song.albumId) continue;
+    const current = songsByAlbum.get(song.albumId) || [];
+    current.push(song);
+    songsByAlbum.set(song.albumId, current);
+  }
+
+  const enriched = albums.map((album) => {
+    const albumSongs = songsByAlbum.get(album.id) || [];
+    return {
+      ...album,
+      artistName: artists.find((artist) => artist.id === album.artistId)?.name || album.artistName || 'Unknown Artist',
+      songCount: albumSongs.length,
+      songs: albumSongs.slice(0, 5),
+    };
+  });
 
   return NextResponse.json({ success: true, count: enriched.length, albums: enriched });
 }

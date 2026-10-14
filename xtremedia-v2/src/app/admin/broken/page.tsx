@@ -21,7 +21,7 @@ export default function AdminBrokenSongsPage() {
   const fetchBrokenSongs = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/broken');
+      const res = await fetch('/api/admin/broken', { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
         if (data.success) {
@@ -45,6 +45,7 @@ export default function AdminBrokenSongsPage() {
       const res = await fetch('/api/admin/broken', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
         body: JSON.stringify({ songId, newAudioUrl: replacementUrl || undefined }),
       });
       const data = await res.json();
@@ -64,7 +65,7 @@ export default function AdminBrokenSongsPage() {
     if (!window.confirm(`Xóa bài hát "${songTitle}" khỏi hệ thống?`)) return;
 
     try {
-      const res = await fetch(`/api/admin/songs/${songId}`, { method: 'DELETE' });
+      const res = await fetch(`/api/admin/songs/${songId}`, { method: 'DELETE', cache: 'no-store' });
       if (res.ok) {
         fetchBrokenSongs();
       }

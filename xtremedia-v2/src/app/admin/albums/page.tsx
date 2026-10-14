@@ -1,11 +1,16 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Disc3, Plus, Trash2, X, Pencil } from 'lucide-react';
-import { Artist, Album } from '@/lib/types';
+import { Disc3, Plus, Trash2, X, Pencil, Music4, ListMusic } from 'lucide-react';
+import { Artist, Album, Song } from '@/lib/types';
+
+type AdminAlbum = Album & {
+  songCount: number;
+  songs: Song[];
+};
 
 export default function AdminAlbumsPage() {
-  const [albums, setAlbums] = useState<Album[]>([]);
+  const [albums, setAlbums] = useState<AdminAlbum[]>([]);
   const [artists, setArtists] = useState<Artist[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -27,13 +32,19 @@ export default function AdminAlbumsPage() {
     setLoading(true);
     try {
       const [albumsRes, artistsRes] = await Promise.all([
-        fetch('/api/admin/albums'),
-        fetch('/api/admin/artists'),
+        fetch('/api/admin/albums', { cache: 'no-store' }),
+        fetch('/api/admin/artists', { cache: 'no-store' }),
       ]);
 
       if (albumsRes.ok) {
         const albumsData = await albumsRes.json();
-        setAlbums(albumsData.albums || []);
+        setAlbums(
+          (albumsData.albums || []).map((album: any) => ({
+            ...album,
+            songCount: album.songCount ?? album.songs?.length ?? 0,
+            songs: album.songs || [],
+          }))
+        );
       }
 
       if (artistsRes.ok) {
@@ -85,6 +96,7 @@ export default function AdminAlbumsPage() {
     const res = await fetch(editingAlbum ? `/api/admin/albums/${editingAlbum.id}` : '/api/admin/albums', {
       method: editingAlbum ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json' },
+      cache: 'no-store',
       body: JSON.stringify(payload),
     });
 
@@ -97,14 +109,14 @@ export default function AdminAlbumsPage() {
 
   const handleDeleteAlbum = async (id: string) => {
     if (!window.confirm('Xóa album này?')) return;
-    const res = await fetch(`/api/admin/albums?id=${id}`, { method: 'DELETE' });
+    const res = await fetch(`/api/admin/albums?id=${id}`, { method: 'DELETE', cache: 'no-store' });
     if (res.ok) {
       fetchAlbums();
     }
   };
 
   return (
-    <div style={{ padding: '32px 40px' }}>
+    <div style={{ padding: '32px 40px', minHeight: '100vh', background: 'radial-gradient(circle at top, rgba(99,102,241,0.12), transparent 30%), #090d14' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px' }}>
         <div>
           <h1 style={{ fontSize: '26px', fontWeight: 800, color: '#FFF', margin: '0 0 6px 0' }}>Quản Lý Album</h1>
@@ -137,7 +149,7 @@ export default function AdminAlbumsPage() {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '18px' }}>
           {albums.map((album) => (
-            <div key={album.id} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-subtle)', borderRadius: '16px', overflow: 'hidden' }}>
+            <div key={album.id} style={{ background: 'rgba(15, 23, 42, 0.9)', border: '1px solid var(--border-subtle)', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 10px 30px rgba(15, 23, 42, 0.25)' }}>
               <img src={album.coverUrl} alt={album.title} style={{ width: '100%', aspectRatio: '1', objectFit: 'cover' }} />
               <div style={{ padding: '16px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
@@ -145,6 +157,33 @@ export default function AdminAlbumsPage() {
                 </div>
                 <div style={{ marginTop: '8px', color: 'var(--text-secondary)', fontSize: '13px' }}>{album.artistName || 'Unknown Artist'}</div>
                 <p style={{ marginTop: '10px', color: 'var(--text-muted)', fontSize: '12px', lineHeight: 1.5 }}>{album.description || 'Không có mô tả'}</p>
+
+                <div style={{ marginTop: '12px', padding: '10px 12px', borderRadius: '10px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '12px', fontWeight: 600 }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <ListMusic size={14} />
+                      Bài hát liên quan
+                    </span>
+                    <span>{album.songCount}</span>
+                  </div>
+
+                  {album.songs.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      {album.songs.map((song) => (
+                        <div key={song.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', color: '#dfe7ff', fontSize: '12px' }}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
+                            <Music4 size={12} />
+                            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{song.title}</span>
+                          </span>
+                          <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>{song.durationSeconds ? `${Math.floor(song.durationSeconds / 60)}:${String(song.durationSeconds % 60).padStart(2, '0')}` : ''}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Chưa có bài hát nào trong album.</div>
+                  )}
+                </div>
+
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px', gap: '8px' }}>
                   <button onClick={() => openEditAlbumModal(album)} style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', background: 'rgba(99, 102, 241, 0.12)', border: '1px solid rgba(99, 102, 241, 0.4)', color: '#dfe7ff', borderRadius: '8px', padding: '8px 10px', cursor: 'pointer' }}>
                     <Pencil size={14} /> Sửa

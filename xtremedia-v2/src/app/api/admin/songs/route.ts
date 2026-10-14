@@ -5,6 +5,9 @@ import { verifyAdminRequest, AUTH_COOKIE_NAME } from '@/lib/auth';
 import { Song } from '@/lib/types';
 import { enforceAdminOrigin, enforceRateLimit, isHttpsUrl, parseJsonBody } from '@/lib/security';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 function removeVietnameseTones(str: string): string {
   return str
     .normalize('NFD')

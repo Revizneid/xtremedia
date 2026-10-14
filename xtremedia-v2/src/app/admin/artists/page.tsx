@@ -28,8 +28,8 @@ export default function AdminArtistsPage() {
     setLoading(true);
     try {
       const [resAr, resGe] = await Promise.all([
-        fetch('/api/admin/artists'),
-        fetch('/api/genres'),
+        fetch('/api/admin/artists', { cache: 'no-store' }),
+        fetch('/api/genres', { cache: 'no-store' }),
       ]);
       if (resAr.ok) {
         const dataAr = await resAr.json();
@@ -79,6 +79,7 @@ export default function AdminArtistsPage() {
       const res = await fetch(editingArtist ? `/api/admin/artists/${editingArtist.id}` : '/api/admin/artists', {
         method: editingArtist ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
         body: JSON.stringify(payload),
       });
 
@@ -95,7 +96,7 @@ export default function AdminArtistsPage() {
   const handleDeleteArtist = async (id: string, name: string) => {
     if (!window.confirm(`Xóa nghệ sĩ "${name}"?`)) return;
     try {
-      const res = await fetch(`/api/admin/artists?id=${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/admin/artists?id=${id}`, { method: 'DELETE', cache: 'no-store' });
       if (res.ok) {
         fetchArtistsAndGenres();
       }

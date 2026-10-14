@@ -19,12 +19,13 @@ export default function Home() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   const { playSong } = useAudioPlayer();
+  const activeSongPool = songsList.length > 0 ? songsList : INITIAL_SONGS;
 
   // Load persistent songs and featured banner config from API on mount
   React.useEffect(() => {
     Promise.all([
-      fetch('/api/songs').then((res) => res.json()),
-      fetch('/api/hero').then((res) => res.json()),
+      fetch('/api/songs', { cache: 'no-store' }).then((res) => res.json()),
+      fetch('/api/hero', { cache: 'no-store' }).then((res) => res.json()),
     ])
       .then(([songsData, heroData]) => {
         const songs = songsData.songs || [];
@@ -48,7 +49,7 @@ export default function Home() {
 
   // Filter songs based on search and genre
   const filteredSongs = useMemo(() => {
-    let list = [...songsList];
+    let list = [...activeSongPool];
 
     if (selectedGenre) {
       list = list.filter((s) => s.genreId === selectedGenre);
@@ -71,7 +72,7 @@ export default function Home() {
     }
 
     return list;
-  }, [selectedGenre, searchQuery, currentTab]);
+  }, [activeSongPool, selectedGenre, searchQuery, currentTab]);
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-primary)' }}>
@@ -135,8 +136,8 @@ export default function Home() {
                         className="glass-card"
                         style={{ padding: '16px', cursor: 'pointer' }}
                         onClick={() => {
-                          const albumSong = INITIAL_SONGS.find((s) => s.albumId === album.id);
-                          if (albumSong) playSong(albumSong);
+                          const albumSong = activeSongPool.find((s) => s.albumId === album.id) || activeSongPool[0];
+                          if (albumSong) playSong(albumSong, activeSongPool);
                         }}
                       >
                         <div
@@ -211,8 +212,8 @@ export default function Home() {
                         className="glass-card"
                         style={{ padding: '20px 16px', textAlign: 'center', cursor: 'pointer' }}
                         onClick={() => {
-                          const artistSong = INITIAL_SONGS.find((s) => s.artistId === artist.id);
-                          if (artistSong) playSong(artistSong);
+                          const artistSong = activeSongPool.find((s) => s.artistId === artist.id) || activeSongPool[0];
+                          if (artistSong) playSong(artistSong, activeSongPool);
                         }}
                       >
                         <div

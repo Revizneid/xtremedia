@@ -5,6 +5,9 @@ import { verifyAdminRequest, AUTH_COOKIE_NAME } from '@/lib/auth';
 import { getHeroBannerConfig, saveHeroBannerConfig } from '@/lib/heroBanner';
 import { enforceAdminOrigin, enforceRateLimit, isHttpsUrl, parseJsonBody } from '@/lib/security';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 const heroSchema = z.object({
   enabled: z.boolean().optional(),
   songId: z.string().trim().max(120).nullable().optional(),

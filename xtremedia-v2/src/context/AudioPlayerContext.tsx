@@ -175,32 +175,44 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
   const playSong = useCallback((song: Song, newQueue?: Song[]) => {
     if (!audioRef.current) return;
 
+    const audio = audioRef.current;
+    const shouldUseProxy = !song.audioUrl || song.audioUrl.startsWith('/media/') || song.audioUrl.startsWith('media/') || !song.audioUrl.startsWith('http');
+    const primarySource = shouldUseProxy ? `/api/stream?id=${song.id}` : song.audioUrl;
+
     if (newQueue) {
       setQueue(newQueue);
       const index = newQueue.findIndex((s) => s.id === song.id);
       setQueueIndex(index !== -1 ? index : 0);
     } else if (!queue.some((s) => s.id === song.id)) {
-      setQueue((prev) => [...prev, song]);
-      setQueueIndex(queue.length);
+      setQueue((prev) => {
+        const nextQueue = [...prev, song];
+        setQueueIndex(prev.length);
+        return nextQueue;
+      });
     }
 
     setCurrentSong(song);
-    audioRef.current.src = `/api/stream?id=${song.id}`;
-    audioRef.current.play().then(() => {
+    audio.preload = 'auto';
+    audio.src = primarySource;
+    audio.load();
+
+    audio.play().then(() => {
       setIsPlaying(true);
     }).catch((err) => {
-      console.warn('Proxy audio play failed, falling back to direct URL:', err);
-      if (audioRef.current) {
-        audioRef.current.src = song.audioUrl;
-        audioRef.current.play().catch((e) => console.warn(e));
+      console.warn('Primary audio source failed, retrying with proxy fallback:', err);
+      const fallbackSource = `/api/stream?id=${song.id}`;
+      if (audio.src !== fallbackSource) {
+        audio.src = fallbackSource;
+        audio.load();
+        audio.play().catch((e) => console.warn('Audio stream fallback failed:', e));
       }
     });
 
-    // Notify API about play count increment
     fetch(`/api/songs/${song.id}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'play' }),
+      cache: 'no-store',
     }).catch(() => {});
   }, [queue]);
 

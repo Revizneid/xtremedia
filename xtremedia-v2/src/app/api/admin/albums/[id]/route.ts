@@ -4,6 +4,9 @@ import { db } from '@/lib/db';
 import { verifyAdminRequest, AUTH_COOKIE_NAME } from '@/lib/auth';
 import { enforceAdminOrigin, enforceRateLimit, isHttpsUrl, parseJsonBody } from '@/lib/security';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 const albumUpdateSchema = z.object({
   title: z.string().trim().min(1).max(180).optional(),
   artistId: z.string().trim().min(1).max(120).optional(),

@@ -28,7 +28,7 @@ export default function AdminHeroPage() {
   const fetchConfig = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/hero');
+      const res = await fetch('/api/admin/hero', { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
         setConfig(data.config || null);
@@ -52,6 +52,7 @@ export default function AdminHeroPage() {
       const res = await fetch('/api/admin/hero', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
         body: JSON.stringify(config),
       });
       if (res.ok) {

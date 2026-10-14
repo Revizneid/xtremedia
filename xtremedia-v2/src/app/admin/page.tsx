@@ -64,7 +64,7 @@ export default function AdminDashboardPage() {
   const fetchStats = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/stats');
+      const res = await fetch('/api/admin/stats', { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
         if (data.success) {

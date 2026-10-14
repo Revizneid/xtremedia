@@ -44,7 +44,7 @@ export default function AdminSongsPage() {
   const fetchSongs = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/admin/songs${search ? `?q=${encodeURIComponent(search)}` : ''}`);
+      const res = await fetch(`/api/admin/songs${search ? `?q=${encodeURIComponent(search)}` : ''}`, { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
         if (data.success) {
@@ -110,6 +110,7 @@ export default function AdminSongsPage() {
         const res = await fetch(`/api/admin/songs/${editingSong.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
+          cache: 'no-store',
           body: JSON.stringify({
             title: title.trim(),
             artistName: artistName.trim(),
@@ -134,6 +135,7 @@ export default function AdminSongsPage() {
         const res = await fetch('/api/admin/songs', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          cache: 'no-store',
           body: JSON.stringify({
             title: title.trim(),
             artistName: artistName.trim(),
@@ -180,7 +182,7 @@ export default function AdminSongsPage() {
   };
 
   return (
-    <div style={{ padding: '32px 40px' }}>
+    <div style={{ padding: '32px 40px', minHeight: '100vh', background: 'radial-gradient(circle at top, rgba(99,102,241,0.12), transparent 28%), #090d14' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px' }}>
         <div>
@@ -250,10 +252,11 @@ export default function AdminSongsPage() {
       {/* Songs Table */}
       <div
         style={{
-          background: 'rgba(255, 255, 255, 0.02)',
+          background: 'rgba(15, 23, 42, 0.92)',
           border: '1px solid var(--border-subtle)',
           borderRadius: '20px',
           overflow: 'hidden',
+          boxShadow: '0 16px 32px rgba(15, 23, 42, 0.2)',
         }}
       >
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>

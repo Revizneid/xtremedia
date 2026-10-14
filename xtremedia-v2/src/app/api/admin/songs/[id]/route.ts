@@ -4,6 +4,9 @@ import { db } from '@/lib/db';
 import { verifyAdminRequest, AUTH_COOKIE_NAME } from '@/lib/auth';
 import { enforceAdminOrigin, enforceRateLimit, isHttpsUrl, parseJsonBody } from '@/lib/security';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

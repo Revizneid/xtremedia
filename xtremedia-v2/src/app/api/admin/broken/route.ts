@@ -4,6 +4,9 @@ import { db } from '@/lib/db';
 import { verifyAdminRequest, AUTH_COOKIE_NAME } from '@/lib/auth';
 import { enforceAdminOrigin, enforceRateLimit, isHttpsUrl, parseJsonBody } from '@/lib/security';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(request: NextRequest) {
   const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
   const auth = await verifyAdminRequest(token, async (uid) => db.findUserById(uid));
