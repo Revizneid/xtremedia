@@ -70,15 +70,17 @@ export function enforceAdminOrigin(request: NextRequest): NextResponse | null {
     const requestOrigin = new URL(originHeader);
 
     const normalizeHost = (value: string) => value.replace(/\[|\]/g, '').split(':')[0].toLowerCase();
-    const allowedHost = normalizeHost(allowedUrl.hostname);
-    const requestHost = normalizeHost(requestOrigin.hostname);
+    const canonicalLoopbackHost = (value: string) => {
+      const normalized = normalizeHost(value);
+      return normalized === '127.0.0.1' || normalized === '::1' || normalized === 'localhost' ? 'localhost' : normalized;
+    };
+    const allowedHost = canonicalLoopbackHost(allowedUrl.hostname);
+    const requestHost = canonicalLoopbackHost(requestOrigin.hostname);
 
     const sameOrigin = requestOrigin.origin === allowedUrl.origin;
     const sameHost = requestHost === allowedHost;
-    const localhostFallback = ['localhost', '127.0.0.1', '::1'].includes(allowedHost)
-      && ['localhost', '127.0.0.1', '::1'].includes(requestHost);
 
-    if (!sameOrigin && !sameHost && !localhostFallback) {
+    if (!sameOrigin && !sameHost) {
       return NextResponse.json(
         { success: false, error: 'Origin không được phép' },
         { status: 403 }

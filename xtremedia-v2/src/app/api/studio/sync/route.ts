@@ -5,6 +5,7 @@ import { env } from '@/lib/env';
 import { db } from '@/lib/db';
 import { Song } from '@/lib/types';
 import { enforceRateLimit, isHttpsUrl, parseJsonBody } from '@/lib/security';
+import { buildStudioSyncIdempotencyKey, validateStudioSecret } from '@/lib/studioSync';
 
 function removeVietnameseTones(str: string): string {
   return str
@@ -22,21 +23,6 @@ function generateSlug(text: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
-function constantTimeEqual(a: string, b: string): boolean {
-  const aBuffer = Buffer.from(a);
-  const bBuffer = Buffer.from(b);
-
-  if (aBuffer.length !== bBuffer.length) {
-    return false;
-  }
-
-  try {
-    return crypto.timingSafeEqual(aBuffer, bBuffer);
-  } catch {
-    return false;
-  }
-}
-
 function getStudioSecret(): string | null {
   const expectedSecret = env.STUDIO_SYNC_SECRET?.trim();
 
@@ -48,30 +34,8 @@ function getStudioSecret(): string | null {
   return expectedSecret;
 }
 
-function buildIdempotencyKey(data: {
-  audioUrl: string;
-  id?: string;
-  videoId?: string;
-  trimStart?: number;
-  trimEnd?: number;
-}): string {
-  const identity = data.videoId?.trim() || data.id?.trim() || data.audioUrl.trim();
-  return crypto.createHash('sha256')
-    .update(`${identity}|${Number(data.trimStart ?? 0)}|${Number(data.trimEnd ?? 0)}`)
-    .digest('hex');
-}
-
-function validateStudioSecret(request: NextRequest): boolean {
-  const expectedSecret = getStudioSecret();
-  if (!expectedSecret) {
-    return false;
-  }
-
-  const authHeader = request.headers.get('authorization') || '';
-  const match = authHeader.match(/^Bearer\s+(.+)$/i);
-  const bearerToken = match ? match[1].trim() : '';
-
-  return bearerToken.length > 0 && constantTimeEqual(bearerToken, expectedSecret);
+function validateRequestSecret(request: NextRequest): boolean {
+  return validateStudioSecret(request.headers.get('authorization'), getStudioSecret());
 }
 
 export async function OPTIONS() {
@@ -91,7 +55,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ success: false, error: 'service unavailable' }, { status: 503 });
   }
 
-  if (!validateStudioSecret(request)) {
+  if (!validateRequestSecret(request)) {
     return NextResponse.json({ success: false, error: 'unauthorized' }, { status: 401 });
   }
 
@@ -126,7 +90,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'service unavailable' }, { status: 503 });
     }
 
-    if (!validateStudioSecret(request)) {
+    if (!validateRequestSecret(request)) {
       return NextResponse.json({ success: false, error: 'unauthorized' }, { status: 401 });
     }
 
@@ -154,7 +118,7 @@ export async function POST(request: NextRequest) {
     const normalizedAudioUrl = String(audioUrl).trim();
     const titleAscii = removeVietnameseTones(cleanTitle);
     const slug = generateSlug(cleanTitle);
-    const idempotencyKey = (request.headers.get('Idempotency-Key') || '').trim() || buildIdempotencyKey({
+    const idempotencyKey = (request.headers.get('Idempotency-Key') || '').trim() || buildStudioSyncIdempotencyKey({
       audioUrl: normalizedAudioUrl,
       id,
       videoId,

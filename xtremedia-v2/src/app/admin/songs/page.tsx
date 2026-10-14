@@ -22,6 +22,7 @@ import { useAudioPlayer } from '@/context/AudioPlayerContext';
 export default function AdminSongsPage() {
   const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSong, setEditingSong] = useState<Song | null>(null);
@@ -43,16 +44,21 @@ export default function AdminSongsPage() {
 
   const fetchSongs = async () => {
     setLoading(true);
+    setFetchError(null);
+
     try {
       const res = await fetch(`/api/admin/songs${search ? `?q=${encodeURIComponent(search)}` : ''}`, { cache: 'no-store' });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success) {
-          setSongs(data.songs);
-        }
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Không thể tải danh sách bài hát');
       }
+
+      setSongs(Array.isArray(data.songs) ? data.songs : []);
     } catch (err) {
       console.error('Failed to fetch songs:', err);
+      setFetchError(err instanceof Error ? err.message : 'Không thể tải danh sách bài hát');
+      setSongs([]);
     } finally {
       setLoading(false);
     }
@@ -252,158 +258,185 @@ export default function AdminSongsPage() {
         </div>
       </div>
 
-      {/* Songs Table */}
-      <div
-        style={{
-          background: 'rgba(15, 23, 42, 0.92)',
-          border: '1px solid var(--border-subtle)',
-          borderRadius: '20px',
-          overflow: 'hidden',
-          boxShadow: '0 16px 32px rgba(15, 23, 42, 0.2)',
-        }}
-      >
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
-          <thead>
-            <tr style={{ borderBottom: '1px solid var(--border-subtle)', background: 'rgba(255, 255, 255, 0.03)', color: 'var(--text-muted)' }}>
-              <th style={{ padding: '14px 16px', width: '50px' }}>Phát</th>
-              <th style={{ padding: '14px 16px' }}>Tiêu Đề</th>
-              <th style={{ padding: '14px 16px' }}>Ca Sĩ</th>
-              <th style={{ padding: '14px 16px' }}>Thể Loại</th>
-              <th style={{ padding: '14px 16px' }}>Chất Lượng</th>
-              <th style={{ padding: '14px 16px' }}>Lượt Nghe</th>
-              <th style={{ padding: '14px 16px' }}>LRC Karaoke</th>
-              <th style={{ padding: '14px 16px' }}>Trạng Thái</th>
-              <th style={{ padding: '14px 16px', textAlign: 'right' }}>Thao Tác</th>
-            </tr>
-          </thead>
-          <tbody>
-            {songs.map((song) => {
-              const isCurrent = currentSong?.id === song.id;
-              return (
-                <tr
-                  key={song.id}
-                  style={{
-                    borderBottom: '1px solid rgba(255, 255, 255, 0.04)',
-                    background: isCurrent ? 'rgba(99, 102, 241, 0.08)' : 'transparent',
-                    transition: 'background 0.2s',
-                  }}
-                >
-                  <td style={{ padding: '12px 16px' }}>
-                    <button
-                      onClick={() => (isCurrent ? togglePlayPause() : playSong(song))}
-                      style={{
-                        width: '32px',
-                        height: '32px',
-                        borderRadius: '50%',
-                        border: 'none',
-                        background: isCurrent ? 'var(--accent-indigo)' : 'rgba(255, 255, 255, 0.08)',
-                        color: '#FFF',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {isCurrent && isPlaying ? <Pause size={14} /> : <Play size={14} />}
-                    </button>
-                  </td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <img
-                        src={song.coverUrl}
-                        alt=""
-                        style={{ width: '40px', height: '40px', borderRadius: '8px', objectFit: 'cover' }}
-                      />
-                      <div>
-                        <div style={{ color: '#FFF', fontWeight: 600 }}>{song.title}</div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>ID: {song.id}</div>
+      {loading ? (
+        <div style={{ padding: '28px', borderRadius: '18px', border: '1px solid var(--border-subtle)', background: 'rgba(15, 23, 42, 0.7)', color: 'var(--text-muted)', textAlign: 'center' }}>
+          Đang tải danh sách bài hát...
+        </div>
+      ) : fetchError ? (
+        <div style={{ padding: '28px', borderRadius: '18px', border: '1px solid rgba(239, 68, 68, 0.3)', background: 'rgba(127, 30, 30, 0.12)', color: '#fecaca', textAlign: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '8px' }}>
+            <AlertTriangle size={18} />
+            <strong>Không thể tải dữ liệu</strong>
+          </div>
+          <p style={{ margin: '0 0 16px', color: '#fecaca' }}>{fetchError}</p>
+          <button
+            onClick={() => void fetchSongs()}
+            className="btn-secondary"
+            style={{ margin: '0 auto' }}
+          >
+            Thử lại
+          </button>
+        </div>
+      ) : songs.length === 0 ? (
+        <div style={{ padding: '32px', borderRadius: '18px', border: '1px solid var(--border-subtle)', background: 'rgba(15, 23, 42, 0.7)', textAlign: 'center', color: 'var(--text-muted)' }}>
+          <Music size={28} style={{ marginBottom: '10px', color: 'var(--accent-indigo)' }} />
+          <h3 style={{ margin: '0 0 8px', color: '#FFF' }}>Chưa có bài hát nào phù hợp</h3>
+          <p style={{ margin: '0 0 16px' }}>Hãy thêm bài hát mới hoặc đổi từ khóa tìm kiếm.</p>
+          <button onClick={openAddModal} className="btn-primary">Thêm bài hát mới</button>
+        </div>
+      ) : (
+        <div
+          style={{
+            background: 'rgba(15, 23, 42, 0.92)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: '20px',
+            overflow: 'hidden',
+            boxShadow: '0 16px 32px rgba(15, 23, 42, 0.2)',
+          }}
+        >
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--border-subtle)', background: 'rgba(255, 255, 255, 0.03)', color: 'var(--text-muted)' }}>
+                <th style={{ padding: '14px 16px', width: '50px' }}>Phát</th>
+                <th style={{ padding: '14px 16px' }}>Tiêu Đề</th>
+                <th style={{ padding: '14px 16px' }}>Ca Sĩ</th>
+                <th style={{ padding: '14px 16px' }}>Thể Loại</th>
+                <th style={{ padding: '14px 16px' }}>Chất Lượng</th>
+                <th style={{ padding: '14px 16px' }}>Lượt Nghe</th>
+                <th style={{ padding: '14px 16px' }}>LRC Karaoke</th>
+                <th style={{ padding: '14px 16px' }}>Trạng Thái</th>
+                <th style={{ padding: '14px 16px', textAlign: 'right' }}>Thao Tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              {songs.map((song) => {
+                const isCurrent = currentSong?.id === song.id;
+                return (
+                  <tr
+                    key={song.id}
+                    style={{
+                      borderBottom: '1px solid rgba(255, 255, 255, 0.04)',
+                      background: isCurrent ? 'rgba(99, 102, 241, 0.08)' : 'transparent',
+                      transition: 'background 0.2s',
+                    }}
+                  >
+                    <td style={{ padding: '12px 16px' }}>
+                      <button
+                        onClick={() => (isCurrent ? togglePlayPause() : playSong(song))}
+                        style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '50%',
+                          border: 'none',
+                          background: isCurrent ? 'var(--accent-indigo)' : 'rgba(255, 255, 255, 0.08)',
+                          color: '#FFF',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {isCurrent && isPlaying ? <Pause size={14} /> : <Play size={14} />}
+                      </button>
+                    </td>
+                    <td style={{ padding: '12px 16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <img
+                          src={song.coverUrl}
+                          alt=""
+                          style={{ width: '40px', height: '40px', borderRadius: '8px', objectFit: 'cover' }}
+                        />
+                        <div>
+                          <div style={{ color: '#FFF', fontWeight: 600 }}>{song.title}</div>
+                          <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>ID: {song.id}</div>
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{song.artistName}</td>
-                  <td style={{ padding: '12px 16px', color: 'var(--text-muted)' }}>{song.genreName || 'Nhạc Trẻ'}</td>
-                  <td style={{ padding: '12px 16px', color: '#10b981', fontWeight: 600 }}>
-                    {song.bitrateKbps} kbps
-                  </td>
-                  <td style={{ padding: '12px 16px', color: '#FFF', fontWeight: 600 }}>
-                    {song.playCount.toLocaleString()}
-                  </td>
-                  <td style={{ padding: '12px 16px' }}>
-                    {song.lyricsLrc ? (
-                      <span style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}>
-                        <CheckCircle2 size={14} /> Có lời sync
-                      </span>
-                    ) : (
-                      <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Chưa có</span>
-                    )}
-                  </td>
-                  <td style={{ padding: '12px 16px' }}>
-                    {song.isBroken ? (
-                      <span
-                        style={{
-                          padding: '4px 8px',
-                          borderRadius: '6px',
-                          background: 'rgba(239, 68, 68, 0.2)',
-                          color: '#f87171',
-                          fontSize: '11px',
-                          fontWeight: 600,
-                        }}
-                      >
-                        Báo hỏng
-                      </span>
-                    ) : (
-                      <span
-                        style={{
-                          padding: '4px 8px',
-                          borderRadius: '6px',
-                          background: 'rgba(16, 185, 129, 0.15)',
-                          color: '#10b981',
-                          fontSize: '11px',
-                          fontWeight: 600,
-                        }}
-                      >
-                        Sẵn sàng
-                      </span>
-                    )}
-                  </td>
-                  <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                      <button
-                        onClick={() => openEditModal(song)}
-                        title="Chỉnh sửa bài hát"
-                        style={{
-                          padding: '6px',
-                          borderRadius: '8px',
-                          background: 'rgba(255, 255, 255, 0.06)',
-                          border: 'none',
-                          color: 'var(--text-secondary)',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        <Edit2 size={15} />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteSong(song.id, song.title)}
-                        title="Xóa bài hát"
-                        style={{
-                          padding: '6px',
-                          borderRadius: '8px',
-                          background: 'rgba(239, 68, 68, 0.12)',
-                          border: 'none',
-                          color: '#f87171',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+                    </td>
+                    <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{song.artistName}</td>
+                    <td style={{ padding: '12px 16px', color: 'var(--text-muted)' }}>{song.genreName || 'Nhạc Trẻ'}</td>
+                    <td style={{ padding: '12px 16px', color: '#10b981', fontWeight: 600 }}>
+                      {song.bitrateKbps} kbps
+                    </td>
+                    <td style={{ padding: '12px 16px', color: '#FFF', fontWeight: 600 }}>
+                      {song.playCount.toLocaleString()}
+                    </td>
+                    <td style={{ padding: '12px 16px' }}>
+                      {song.lyricsLrc ? (
+                        <span style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}>
+                          <CheckCircle2 size={14} /> Có lời sync
+                        </span>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Chưa có</span>
+                      )}
+                    </td>
+                    <td style={{ padding: '12px 16px' }}>
+                      {song.isBroken ? (
+                        <span
+                          style={{
+                            padding: '4px 8px',
+                            borderRadius: '6px',
+                            background: 'rgba(239, 68, 68, 0.2)',
+                            color: '#f87171',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                          }}
+                        >
+                          Báo hỏng
+                        </span>
+                      ) : (
+                        <span
+                          style={{
+                            padding: '4px 8px',
+                            borderRadius: '6px',
+                            background: 'rgba(16, 185, 129, 0.15)',
+                            color: '#10b981',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                          }}
+                        >
+                          Sẵn sàng
+                        </span>
+                      )}
+                    </td>
+                    <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                        <button
+                          onClick={() => openEditModal(song)}
+                          title="Chỉnh sửa bài hát"
+                          style={{
+                            padding: '6px',
+                            borderRadius: '8px',
+                            background: 'rgba(255, 255, 255, 0.06)',
+                            border: 'none',
+                            color: 'var(--text-secondary)',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <Edit2 size={15} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteSong(song.id, song.title)}
+                          title="Xóa bài hát"
+                          style={{
+                            padding: '6px',
+                            borderRadius: '8px',
+                            background: 'rgba(239, 68, 68, 0.12)',
+                            border: 'none',
+                            color: '#f87171',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Add / Edit Song Modal */}
       {isModalOpen && (
