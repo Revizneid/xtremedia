@@ -9,7 +9,7 @@ import MobileBottomNav from '@/components/MobileBottomNav';
 import { useAudioPlayer } from '@/context/AudioPlayerContext';
 import { deriveCatalogFromSongs } from '@/lib/catalog';
 import type { Genre, Song } from '@/lib/types';
-import { Play, Pause, Disc, Mic2, Sparkles, Heart, Radio, ListMusic, Volume2 } from 'lucide-react';
+import { Play, Pause, Disc, Mic2, Sparkles, Heart, Radio, ListMusic, Volume2, AlertTriangle, RefreshCcw, Music } from 'lucide-react';
 import styles from './page.module.css';
 
 export default function Home() {
@@ -19,6 +19,8 @@ export default function Home() {
   const [songsList, setSongsList] = useState<Song[]>([]);
   const [genresList, setGenresList] = useState<Genre[]>([]);
   const [featuredSong, setFeaturedSong] = useState<Song | null>(null);
+  const [isCatalogLoading, setIsCatalogLoading] = useState(true);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   const { playSong, currentSong, isPlaying, togglePlayPause } = useAudioPlayer();
@@ -28,30 +30,49 @@ export default function Home() {
   const artists = catalog.artists;
   const genres = catalog.genres;
 
-  React.useEffect(() => {
-    Promise.all([
-      fetch('/api/songs', { cache: 'no-store' }).then((res) => res.json()),
-      fetch('/api/genres', { cache: 'no-store' }).then((res) => res.json()),
-      fetch('/api/hero', { cache: 'no-store' }).then((res) => res.json()),
-    ])
-      .then(([songsData, genresData, heroData]) => {
-        const songs = Array.isArray(songsData?.songs) ? songsData.songs : [];
-        const nextGenres = Array.isArray(genresData?.genres) ? genresData.genres : [];
+  const fetchCatalog = React.useCallback(async () => {
+    setIsCatalogLoading(true);
+    setCatalogError(null);
 
-        setSongsList(songs);
-        setGenresList(nextGenres);
+    try {
+      const [songsResponse, genresResponse, heroResponse] = await Promise.all([
+        fetch('/api/songs', { cache: 'no-store' }),
+        fetch('/api/genres', { cache: 'no-store' }),
+        fetch('/api/hero', { cache: 'no-store' }),
+      ]);
 
-        if (songs.length > 0) {
-          const heroSong = heroData?.config?.songId
-            ? songs.find((song: Song) => song.id === heroData.config.songId)
-            : null;
-          setFeaturedSong(heroSong || songs[0]);
-        } else {
-          setFeaturedSong(null);
-        }
-      })
-      .catch((err) => console.warn('Could not fetch music catalog from API:', err));
+      const songsData = await songsResponse.json();
+      const genresData = await genresResponse.json();
+      const heroData = await heroResponse.json();
+
+      const songs = Array.isArray(songsData?.songs) ? songsData.songs : [];
+      const nextGenres = Array.isArray(genresData?.genres) ? genresData.genres : [];
+
+      setSongsList(songs);
+      setGenresList(nextGenres);
+
+      if (songs.length > 0) {
+        const heroSong = heroData?.config?.songId
+          ? songs.find((song: Song) => song.id === heroData.config.songId)
+          : null;
+        setFeaturedSong(heroSong || songs[0]);
+      } else {
+        setFeaturedSong(null);
+      }
+    } catch (err) {
+      console.warn('Could not fetch music catalog from API:', err);
+      setCatalogError('Không thể tải danh sách nhạc. Vui lòng thử lại sau.');
+      setSongsList([]);
+      setGenresList([]);
+      setFeaturedSong(null);
+    } finally {
+      setIsCatalogLoading(false);
+    }
   }, []);
+
+  React.useEffect(() => {
+    void fetchCatalog();
+  }, [fetchCatalog]);
 
   // Filter songs based on search and genre
   const filteredSongs = useMemo(() => {
@@ -104,7 +125,33 @@ export default function Home() {
 
         {/* Dynamic Page Views */}
         <div className={`${styles.contentPadding} content-padding`}>
-          {currentTab === 'discover' && (
+          {isCatalogLoading ? (
+            <div className={styles.stateCard}>
+              <div className={styles.loaderHeader}>
+                <div className={styles.loaderDot} />
+                <div className={styles.loaderDot} />
+                <div className={styles.loaderDot} />
+              </div>
+              <h3 className={styles.stateTitle}>Đang tải catalog nhạc</h3>
+              <p className={styles.stateText}>Chuẩn bị danh sách bài hát và các lựa chọn gợi ý cho bạn.</p>
+            </div>
+          ) : catalogError ? (
+            <div className={styles.stateCard}>
+              <AlertTriangle size={32} color="var(--accent-rose)" />
+              <h3 className={styles.stateTitle}>Không thể tải dữ liệu</h3>
+              <p className={styles.stateText}>{catalogError}</p>
+              <button className="btn-secondary" onClick={() => void fetchCatalog()}>
+                <RefreshCcw size={16} />
+                <span>Thử lại</span>
+              </button>
+            </div>
+          ) : songsList.length === 0 ? (
+            <div className={styles.stateCard}>
+              <Music size={32} color="var(--accent-indigo)" />
+              <h3 className={styles.stateTitle}>Chưa có dữ liệu nhạc</h3>
+              <p className={styles.stateText}>Bộ sưu tập đang trống. Hãy đồng bộ bài hát hoặc thêm dữ liệu mới từ Studio.</p>
+            </div>
+          ) : currentTab === 'discover' && (
             <>
               {/* Hero Banner for Featured Trending Track */}
               {!searchQuery && !selectedGenre && featuredSong && (
