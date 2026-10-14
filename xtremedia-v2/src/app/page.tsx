@@ -6,8 +6,9 @@ import Header from '@/components/Header';
 import HeroBanner from '@/components/HeroBanner';
 import SongList from '@/components/SongList';
 import MobileBottomNav from '@/components/MobileBottomNav';
-import { INITIAL_SONGS, INITIAL_ARTISTS, INITIAL_ALBUMS, INITIAL_GENRES } from '@/lib/mockData';
 import { useAudioPlayer } from '@/context/AudioPlayerContext';
+import { deriveCatalogFromSongs } from '@/lib/catalog';
+import type { Genre, Song } from '@/lib/types';
 import { Play, Pause, Disc, Mic2, Sparkles, Heart, Radio, ListMusic, Volume2 } from 'lucide-react';
 import styles from './page.module.css';
 
@@ -15,37 +16,41 @@ export default function Home() {
   const [currentTab, setCurrentTab] = useState<string>('discover');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
-  const [songsList, setSongsList] = useState(INITIAL_SONGS);
-  const [featuredSong, setFeaturedSong] = useState(INITIAL_SONGS[0]);
+  const [songsList, setSongsList] = useState<Song[]>([]);
+  const [genresList, setGenresList] = useState<Genre[]>([]);
+  const [featuredSong, setFeaturedSong] = useState<Song | null>(null);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   const { playSong, currentSong, isPlaying, togglePlayPause } = useAudioPlayer();
-  const activeSongPool = songsList.length > 0 ? songsList : INITIAL_SONGS;
+  const catalog = useMemo(() => deriveCatalogFromSongs(songsList, genresList), [songsList, genresList]);
+  const activeSongPool = songsList;
+  const albums = catalog.albums;
+  const artists = catalog.artists;
+  const genres = catalog.genres;
 
-  // Load persistent songs and featured banner config from API on mount
   React.useEffect(() => {
     Promise.all([
       fetch('/api/songs', { cache: 'no-store' }).then((res) => res.json()),
+      fetch('/api/genres', { cache: 'no-store' }).then((res) => res.json()),
       fetch('/api/hero', { cache: 'no-store' }).then((res) => res.json()),
     ])
-      .then(([songsData, heroData]) => {
-        const songs = songsData.songs || [];
-        if (songs.length > 0) {
-          setSongsList(songs);
-          const heroSong = heroData?.config?.songId
-            ? songs.find((song: any) => song.id === heroData.config.songId)
-            : null;
-          setFeaturedSong(heroSong || songs[0] || INITIAL_SONGS[0]);
-        }
+      .then(([songsData, genresData, heroData]) => {
+        const songs = Array.isArray(songsData?.songs) ? songsData.songs : [];
+        const nextGenres = Array.isArray(genresData?.genres) ? genresData.genres : [];
 
-        if (heroData?.config?.songId && songsData.songs?.length) {
-          const matchedSong = songsData.songs.find((song: any) => song.id === heroData.config.songId);
-          if (matchedSong) {
-            setFeaturedSong(matchedSong);
-          }
+        setSongsList(songs);
+        setGenresList(nextGenres);
+
+        if (songs.length > 0) {
+          const heroSong = heroData?.config?.songId
+            ? songs.find((song: Song) => song.id === heroData.config.songId)
+            : null;
+          setFeaturedSong(heroSong || songs[0]);
+        } else {
+          setFeaturedSong(null);
         }
       })
-      .catch((err) => console.warn('Could not fetch songs from API, using defaults:', err));
+      .catch((err) => console.warn('Could not fetch music catalog from API:', err));
   }, []);
 
   // Filter songs based on search and genre
@@ -91,7 +96,7 @@ export default function Home() {
         <Header
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
-          genres={INITIAL_GENRES}
+          genres={genres}
           selectedGenre={selectedGenre}
           setSelectedGenre={setSelectedGenre}
           onToggleSidebar={() => setIsMobileSidebarOpen((prev) => !prev)}
@@ -102,7 +107,7 @@ export default function Home() {
           {currentTab === 'discover' && (
             <>
               {/* Hero Banner for Featured Trending Track */}
-              {!searchQuery && !selectedGenre && (
+              {!searchQuery && !selectedGenre && featuredSong && (
                 <HeroBanner featuredSong={featuredSong} />
               )}
 
@@ -121,7 +126,7 @@ export default function Home() {
                   </div>
 
                   <div className={styles.albumGrid}>
-                    {INITIAL_ALBUMS.map((album) => {
+                    {albums.map((album) => {
                       const albumSong = activeSongPool.find((s) => s.albumId === album.id) || activeSongPool[0];
                       const isAlbumCurrent = currentSong?.id === albumSong?.id;
                       const isAlbumPlaying = isAlbumCurrent && isPlaying;
@@ -174,7 +179,7 @@ export default function Home() {
                   searchQuery
                     ? `Kết quả tìm kiếm cho "${searchQuery}"`
                     : selectedGenre
-                    ? `Thể loại: ${INITIAL_GENRES.find((g) => g.id === selectedGenre)?.name}`
+                    ? `Thể loại: ${genres.find((g) => g.id === selectedGenre)?.name ?? 'Chọn thể loại'}`
                     : 'Bài Hát Được Nghe Nhiều Nhất'
                 }
                 subtitle="Nhấn vào bài bất kỳ để kiểm thử Core Audio Player Engine và lời Karaoke"
@@ -187,7 +192,7 @@ export default function Home() {
                     Nghệ Sĩ Nổi Bật
                   </h3>
                   <div className={styles.artistGrid}>
-                    {INITIAL_ARTISTS.map((artist) => (
+                    {artists.map((artist) => (
                       <div
                         key={artist.id}
                         className={`glass-card ${styles.artistCard}`}
@@ -242,7 +247,7 @@ export default function Home() {
                 Tổng hợp các album tuyển tập chất lượng cao
               </p>
               <div className={styles.albumGridLarge}>
-                {INITIAL_ALBUMS.map((album) => (
+                {albums.map((album) => (
                   <div key={album.id} className="glass-card" style={{ padding: '20px' }}>
                     <img
                       src={album.coverUrl}
@@ -267,7 +272,7 @@ export default function Home() {
                 Tất cả ca sĩ & ban nhạc trong hệ thống XtreMedia
               </p>
               <div className={styles.artistGridLarge}>
-                {INITIAL_ARTISTS.map((artist) => (
+                {artists.map((artist) => (
                   <div key={artist.id} className="glass-card" style={{ padding: '24px 18px', textAlign: 'center' }}>
                     <img
                       src={artist.avatarUrl}
@@ -294,7 +299,7 @@ export default function Home() {
                 Đã khắc phục hoàn toàn lỗi ghi đè playlist tập trung của bản 1.2
               </p>
               <SongList
-                songs={INITIAL_SONGS.slice(0, 3)}
+                songs={songsList.slice(0, Math.min(3, songsList.length))}
                 title="Bài Hát Đã Lưu Gần Đây"
                 subtitle="Danh sách bài hát yêu thích của tài khoản thành viên"
               />
@@ -312,7 +317,10 @@ export default function Home() {
               </p>
               <button
                 className="btn-primary"
-                onClick={() => playSong(INITIAL_SONGS[1])}
+                onClick={() => {
+                  const radioSong = songsList[1] ?? songsList[0];
+                  if (radioSong) playSong(radioSong, activeSongPool);
+                }}
                 style={{ margin: '0 auto', padding: '14px 36px', fontSize: '16px' }}
               >
                 <Volume2 size={20} />
