@@ -330,6 +330,9 @@ export const songRepo = {
       success: number;
       reused: number;
       failed: number;
+      hasSynced: boolean;
+      lastSyncStatus: 'SUCCESS' | 'REUSED' | 'FAILED' | 'NEVER';
+      lastSyncAt: string | null;
       recent: Array<{ id: string; status: string; createdAt: string; payloadHash: string }>;
     };
   }> {
@@ -363,6 +366,9 @@ export const songRepo = {
 
     const totalPlays = (await prisma.song.aggregate({ _sum: { playCount: true } }))._sum.playCount ?? 0;
     const totalDownloads = (await prisma.song.aggregate({ _sum: { downloadCount: true } }))._sum.downloadCount ?? 0;
+    const latestSyncLog = recentSyncLogs[0] ?? null;
+    const hasSynced = syncTotal > 0 && !!latestSyncLog;
+    const lastSyncStatus = (latestSyncLog?.status as 'SUCCESS' | 'REUSED' | 'FAILED' | undefined) ?? 'NEVER';
 
     return {
       totalSongs,
@@ -380,6 +386,9 @@ export const songRepo = {
         success: syncSuccess,
         reused: syncReused,
         failed: syncFailed,
+        hasSynced,
+        lastSyncStatus: hasSynced ? lastSyncStatus : 'NEVER',
+        lastSyncAt: latestSyncLog ? latestSyncLog.createdAt.toISOString() : null,
         recent: recentSyncLogs.map((log) => ({
           id: log.id,
           status: log.status,

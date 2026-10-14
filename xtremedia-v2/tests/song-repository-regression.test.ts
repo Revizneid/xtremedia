@@ -8,6 +8,14 @@ import { songRepo } from '../src/lib/repositories/songRepo';
 
 const suffix = Date.now();
 
+test('admin stats expose a definite sync state for the dashboard', async () => {
+  const stats = await songRepo.getAdminStats();
+
+  assert.equal(typeof stats.syncSummary.hasSynced, 'boolean');
+  assert.ok(['SUCCESS', 'REUSED', 'FAILED', 'NEVER'].includes(stats.syncSummary.lastSyncStatus));
+  assert.ok(stats.syncSummary.lastSyncAt === null || typeof stats.syncSummary.lastSyncAt === 'string');
+});
+
 test('song update persists artist, genre and album metadata changes', async () => {
   const originalArtist = await artistRepo.addArtist({
     id: `art-${suffix}-orig`,

@@ -45,6 +45,9 @@ interface StatsData {
     success: number;
     reused: number;
     failed: number;
+    hasSynced: boolean;
+    lastSyncStatus: 'SUCCESS' | 'REUSED' | 'FAILED' | 'NEVER';
+    lastSyncAt: string | null;
     recent: Array<{
       id: string;
       status: string;
@@ -383,11 +386,23 @@ export default function AdminDashboardPage() {
             <div>
               <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#FFF', margin: '0 0 4px 0' }}>Studio Sync Status</h2>
               <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)' }}>
-                Dữ liệu được đồng bộ từ XtreMedia Studio và trạng thái import gần nhất.
+                {stats.syncSummary.hasSynced
+                  ? `Dữ liệu từ Studio đã đồng bộ lần cuối: ${new Date(stats.syncSummary.lastSyncAt!).toLocaleString('vi-VN')} (${stats.syncSummary.lastSyncStatus})`
+                  : 'Chưa có dữ liệu nào từ Studio được đồng bộ. Hệ thống đang chờ lần sync đầu tiên.'}
               </p>
             </div>
-            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-              {stats.syncSummary.total} lần đồng bộ
+            <div
+              style={{
+                padding: '6px 10px',
+                borderRadius: '999px',
+                fontSize: '12px',
+                fontWeight: 700,
+                color: stats.syncSummary.hasSynced ? '#10b981' : '#f59e0b',
+                background: stats.syncSummary.hasSynced ? 'rgba(16,185,129,0.12)' : 'rgba(245,158,11,0.12)',
+                border: `1px solid ${stats.syncSummary.hasSynced ? 'rgba(16,185,129,0.35)' : 'rgba(245,158,11,0.35)'}`,
+              }}
+            >
+              {stats.syncSummary.hasSynced ? 'Synced' : 'Awaiting Sync'}
             </div>
           </div>
 
@@ -405,15 +420,21 @@ export default function AdminDashboardPage() {
           </div>
 
           <div style={{ display: 'grid', gap: '10px' }}>
-            {stats.syncSummary.recent.map((log) => (
-              <div key={log.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '12px 14px', borderRadius: '12px', background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.04)' }}>
-                <div>
-                  <div style={{ color: '#FFF', fontWeight: 600, fontSize: '13px' }}>{log.status}</div>
-                  <div style={{ color: 'var(--text-muted)', fontSize: '12px' }}>{new Date(log.createdAt).toLocaleString('vi-VN')}</div>
+            {stats.syncSummary.recent.length > 0 ? (
+              stats.syncSummary.recent.map((log) => (
+                <div key={log.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '12px 14px', borderRadius: '12px', background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.04)' }}>
+                  <div>
+                    <div style={{ color: '#FFF', fontWeight: 600, fontSize: '13px' }}>{log.status}</div>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '12px' }}>{new Date(log.createdAt).toLocaleString('vi-VN')}</div>
+                  </div>
+                  <div style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>{log.payloadHash.slice(0, 12)}</div>
                 </div>
-                <div style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>{log.payloadHash.slice(0, 12)}</div>
+              ))
+            ) : (
+              <div style={{ padding: '12px 14px', borderRadius: '12px', background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.25)', color: '#fcd34d', fontSize: '13px' }}>
+                Chưa có log đồng bộ nào được ghi lại. Hãy kích hoạt lần sync đầu tiên từ XtreMedia Studio.
               </div>
-            ))}
+            )}
           </div>
         </div>
       )}
