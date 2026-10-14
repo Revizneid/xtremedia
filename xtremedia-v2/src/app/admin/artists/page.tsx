@@ -83,13 +83,17 @@ export default function AdminArtistsPage() {
         body: JSON.stringify(payload),
       });
 
-      if (res.ok) {
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
         setIsArtistModalOpen(false);
         resetArtistForm();
         fetchArtistsAndGenres();
+      } else {
+        alert(data.error || 'Không thể lưu nghệ sĩ.');
       }
     } catch (err) {
       console.error('Save artist error:', err);
+      alert('Không thể lưu nghệ sĩ. Vui lòng thử lại.');
     }
   };
 
@@ -97,11 +101,16 @@ export default function AdminArtistsPage() {
     if (!window.confirm(`Xóa nghệ sĩ "${name}"?`)) return;
     try {
       const res = await fetch(`/api/admin/artists?id=${id}`, { method: 'DELETE', cache: 'no-store' });
-      if (res.ok) {
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && data.success) {
         fetchArtistsAndGenres();
+      } else {
+        alert(data.error || 'Không thể xóa nghệ sĩ.');
       }
     } catch (err) {
       console.error('Delete artist error:', err);
+      alert('Không thể xóa nghệ sĩ. Vui lòng thử lại.');
     }
   };
 

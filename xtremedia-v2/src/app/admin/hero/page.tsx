@@ -90,7 +90,7 @@ export default function AdminHeroPage() {
 
           <div>
             <label style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '6px' }}>Bài hát nổi bật</label>
-            <select value={config.songId || ''} onChange={(e) => setConfig({ ...config, songId: e.target.value || null })} style={{ width: '100%', borderRadius: '10px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-subtle)', color: '#FFF', padding: '10px 12px' }}>
+            <select value={config.songId || ''} onChange={(e) => setConfig({ ...config, songId: e.target.value || null })} style={{ width: '100%', borderRadius: '10px', background: '#0b1220', border: '1px solid var(--border-subtle)', color: '#FFF', padding: '10px 12px', colorScheme: 'dark', appearance: 'none', WebkitAppearance: 'none', backgroundImage: 'linear-gradient(45deg, transparent 50%, #d1d5db 50%), linear-gradient(135deg, #d1d5db 50%, transparent 50%)', backgroundPosition: 'calc(100% - 18px) calc(1.1em + 2px), calc(100% - 12px) calc(1.1em + 2px)', backgroundSize: '6px 6px, 6px 6px', backgroundRepeat: 'no-repeat' }}>
               <option value="">Chọn bài hát</option>
               {songs.map((song) => (
                 <option key={song.id} value={song.id}>{song.title} • {song.artistName}</option>

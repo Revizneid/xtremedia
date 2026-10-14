@@ -100,18 +100,26 @@ export default function AdminAlbumsPage() {
       body: JSON.stringify(payload),
     });
 
-    if (res.ok) {
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.success) {
       resetAlbumForm();
       setIsModalOpen(false);
       fetchAlbums();
+    } else {
+      alert(data.error || 'Không thể lưu album.');
     }
   };
 
   const handleDeleteAlbum = async (id: string) => {
     if (!window.confirm('Xóa album này?')) return;
+
     const res = await fetch(`/api/admin/albums?id=${id}`, { method: 'DELETE', cache: 'no-store' });
-    if (res.ok) {
+    const data = await res.json().catch(() => ({}));
+
+    if (res.ok && data.success) {
       fetchAlbums();
+    } else {
+      alert(data.error || 'Không thể xóa album.');
     }
   };
 

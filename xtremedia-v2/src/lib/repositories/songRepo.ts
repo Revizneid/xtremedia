@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
+import { sanitizeAudioUrl } from '@/lib/audioPlayback';
 import type { Song, SongStatus } from '@/lib/types';
 
 export type SongQueryOptions = {
@@ -50,7 +51,7 @@ function toLegacySong(record: Prisma.SongGetPayload<{ include: typeof songInclud
     albumTitle: record.album?.title ?? null,
     genreId: record.genreId ?? null,
     genreName: record.genre?.name ?? null,
-    audioUrl: record.audioUrl,
+    audioUrl: sanitizeAudioUrl(record.audioUrl),
     coverUrl: record.coverUrl || record.thumbnailUrl || 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=500&q=80',
     durationSeconds: record.durationSec,
     bitrateKbps: 320,

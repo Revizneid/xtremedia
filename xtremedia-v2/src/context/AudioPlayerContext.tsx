@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { Song, LyricLine } from '@/lib/types';
+import { isExpectedPlaybackAbort, resolveSongStreamSource } from '@/lib/audioPlayback';
 
 interface AudioPlayerContextType {
   currentSong: Song | null;
@@ -176,8 +177,7 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     if (!audioRef.current) return;
 
     const audio = audioRef.current;
-    const shouldUseProxy = !song.audioUrl || song.audioUrl.startsWith('/media/') || song.audioUrl.startsWith('media/') || !song.audioUrl.startsWith('http');
-    const primarySource = shouldUseProxy ? `/api/stream?id=${song.id}` : song.audioUrl;
+    const primarySource = resolveSongStreamSource(song);
 
     if (newQueue) {
       setQueue(newQueue);
@@ -193,18 +193,33 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
 
     setCurrentSong(song);
     audio.preload = 'auto';
-    audio.src = primarySource;
-    audio.load();
+
+    if (!audio.paused) {
+      audio.pause();
+    }
+
+    if (audio.src !== primarySource) {
+      audio.src = primarySource;
+      audio.load();
+    }
 
     audio.play().then(() => {
       setIsPlaying(true);
     }).catch((err) => {
+      if (isExpectedPlaybackAbort(err)) {
+        return;
+      }
+
       console.warn('Primary audio source failed, retrying with proxy fallback:', err);
       const fallbackSource = `/api/stream?id=${song.id}`;
       if (audio.src !== fallbackSource) {
         audio.src = fallbackSource;
         audio.load();
-        audio.play().catch((e) => console.warn('Audio stream fallback failed:', e));
+        audio.play().catch((playError) => {
+          if (!isExpectedPlaybackAbort(playError)) {
+            console.warn('Audio stream fallback failed:', playError);
+          }
+        });
       }
     });
 
@@ -225,7 +240,11 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     } else {
       audioRef.current.play().then(() => {
         setIsPlaying(true);
-      }).catch((err) => console.warn(err));
+      }).catch((err) => {
+        if (!isExpectedPlaybackAbort(err)) {
+          console.warn(err);
+        }
+      });
     }
   }, [isPlaying, currentSong]);
 
