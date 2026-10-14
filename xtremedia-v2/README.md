@@ -2,6 +2,14 @@
 
 ## Development
 
+Before running the app, copy the example environment file and fill in the real values:
+
+```bash
+cp .env.example .env.local
+```
+
+Then install dependencies and start the app:
+
 ```bash
 npm install
 npx prisma generate
@@ -10,6 +18,8 @@ npm run dev
 ```
 
 Open http://localhost:3000.
+
+> Important: keep `.env.local` out of Git. `JWT_SECRET` and `STUDIO_SYNC_SECRET` must be unique per environment and at least 32 characters long.
 
 ## Windows Prisma cache fix (EPERM rename issue)
 
