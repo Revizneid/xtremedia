@@ -11,6 +11,30 @@ npm run dev
 
 Open http://localhost:3000.
 
+## Windows Prisma cache fix (EPERM rename issue)
+
+If `npm run dev` or `npm run build` fails with an `EPERM` error while Prisma tries to rename a `.dll.node` file, the issue is usually a stale lock from a previous Node/VS Code process, not a bad project config.
+
+Run the safe cleanup without admin rights:
+
+```bash
+node scripts/prepare-prisma.js
+npx prisma generate
+```
+
+If the file is still locked, close other terminals or VS Code windows running the app, then rerun the commands above. The project also includes a `predev` and `prebuild` step so the cache is cleaned automatically before starting or building.
+
+## Verification commands
+
+Run these before opening a PR:
+
+```bash
+npm run lint
+npm run typecheck
+npm test
+npm run build
+```
+
 ## Database health
 
 ```bash

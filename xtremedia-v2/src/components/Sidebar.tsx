@@ -10,11 +10,11 @@ import {
   Gift, 
   ListMusic, 
   Radio, 
-  ShieldCheck, 
-  AlertCircle,
+  ShieldCheck,
   X,
 } from 'lucide-react';
 import { useAudioPlayer } from '@/context/AudioPlayerContext';
+import styles from './Sidebar.module.css';
 
 interface SidebarProps {
   currentTab: string;
@@ -46,70 +46,25 @@ export default function Sidebar({ currentTab, setCurrentTab, isOpen = false, onC
       {isOpen && (
         <div
           onClick={onClose}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0, 0, 0, 0.7)',
-            backdropFilter: 'blur(8px)',
-            zIndex: 90,
-          }}
-          className="only-mobile-block"
+          className={`${styles.mobileOverlay} only-mobile-block`}
         />
       )}
 
       <aside
-        className={`sidebar-desktop ${isOpen ? 'sidebar-open' : ''}`}
-        style={{
-          width: '260px',
-          height: '100vh',
-          position: 'fixed',
-          left: 0,
-          top: 0,
-          padding: '24px 16px',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          zIndex: 95,
-          borderRight: '1px solid var(--border-subtle)',
-          background: 'rgba(8, 11, 17, 0.95)',
-          backdropFilter: 'var(--glass-blur)',
-          overflowY: 'auto',
-        }}
+        className={`sidebar-desktop ${isOpen ? 'sidebar-open' : ''} ${styles.sidebar}`}
       >
         <div>
           {/* Brand Logo & Close Button */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 8px', marginBottom: '32px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div
-                style={{
-                  width: '42px',
-                  height: '42px',
-                  borderRadius: '12px',
-                  background: 'var(--accent-gradient)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 4px 15px rgba(99, 102, 241, 0.4)',
-                }}
-              >
+          <div className={styles.brandRow}>
+            <div className={styles.brandColumn}>
+              <div className={styles.brandLogo}>
                 <Disc size={24} color="#FFF" />
               </div>
               <div>
-                <h1 style={{ fontSize: '20px', fontWeight: 800, letterSpacing: '-0.5px', color: '#FFF' }}>
-                  Xtre<span style={{ color: 'var(--accent-rose)' }}>Media</span>
+                <h1 className={styles.brandTitle}>
+                  Xtre<span className={styles.brandAccent}>Media</span>
                 </h1>
-                <span
-                  style={{
-                    fontSize: '10px',
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    background: 'rgba(99, 102, 241, 0.15)',
-                    color: 'var(--accent-indigo)',
-                    padding: '2px 6px',
-                    borderRadius: '6px',
-                    letterSpacing: '0.5px',
-                  }}
-                >
+                <span className={styles.brandTag}>
                   V2 Remaster
                 </span>
               </div>
@@ -119,19 +74,7 @@ export default function Sidebar({ currentTab, setCurrentTab, isOpen = false, onC
             {onClose && (
               <button
                 onClick={onClose}
-                className="only-mobile"
-                style={{
-                  background: 'rgba(255, 255, 255, 0.08)',
-                  border: 'none',
-                  borderRadius: '50%',
-                  width: '36px',
-                  height: '36px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: 'var(--text-muted)',
-                  cursor: 'pointer',
-                }}
+                className={`${styles.closeButton} only-mobile`}
               >
                 <X size={18} />
               </button>
@@ -140,10 +83,10 @@ export default function Sidebar({ currentTab, setCurrentTab, isOpen = false, onC
 
           {/* Main Menu Navigation */}
           <div style={{ marginBottom: '28px' }}>
-            <p style={{ fontSize: '11px', textTransform: 'uppercase', fontWeight: 700, color: 'var(--text-muted)', padding: '0 10px', marginBottom: '10px', letterSpacing: '0.8px' }}>
+            <p className={styles.sectionLabel}>
               Menu Chính
             </p>
-            <nav style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <nav className={styles.menuList}>
               {menuItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = currentTab === item.id;
@@ -154,49 +97,34 @@ export default function Sidebar({ currentTab, setCurrentTab, isOpen = false, onC
                       setCurrentTab(item.id);
                       if (onClose) onClose();
                     }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    width: '100%',
-                    padding: '11px 14px',
-                    borderRadius: '12px',
-                    border: 'none',
-                    background: isActive ? 'var(--accent-gradient)' : 'transparent',
-                    color: isActive ? '#FFFFFF' : 'var(--text-secondary)',
-                    fontWeight: isActive ? 600 : 500,
-                    fontSize: '14px',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    boxShadow: isActive ? '0 4px 15px rgba(99, 102, 241, 0.3)' : 'none',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isActive) {
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                      e.currentTarget.style.color = '#FFF';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isActive) {
-                      e.currentTarget.style.background = 'transparent';
-                      e.currentTarget.style.color = 'var(--text-secondary)';
-                    }
-                  }}
-                >
-                  <Icon size={18} />
-                  <span>{item.label}</span>
-                </button>
-              );
-            })}
-          </nav>
-        </div>
+                    className={`${styles.navButton} ${isActive ? styles.navButtonActive : styles.navButtonInactive}`}
+                    onMouseEnter={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                        e.currentTarget.style.color = '#FFF';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.background = 'transparent';
+                        e.currentTarget.style.color = 'var(--text-secondary)';
+                      }
+                    }}
+                  >
+                    <Icon size={18} />
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
 
         {/* Library Navigation */}
         <div>
-          <p style={{ fontSize: '11px', textTransform: 'uppercase', fontWeight: 700, color: 'var(--text-muted)', padding: '0 10px', marginBottom: '10px', letterSpacing: '0.8px' }}>
+          <p className={styles.sectionLabel}>
             Thư Viện & Tiện Ích
           </p>
-          <nav style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <nav className={styles.libraryList}>
             {libraryItems.map((item) => {
               const Icon = item.icon;
               const isActive = currentTab === item.id;
@@ -208,21 +136,8 @@ export default function Sidebar({ currentTab, setCurrentTab, isOpen = false, onC
                     else setCurrentTab(item.id);
                     if (onClose) onClose();
                   }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    width: '100%',
-                    padding: '11px 14px',
-                    borderRadius: '12px',
-                    border: 'none',
-                    background: isActive ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
-                    color: isActive ? 'var(--accent-indigo)' : 'var(--text-secondary)',
-                    fontWeight: isActive ? 600 : 500,
-                    fontSize: '14px',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                  }}
+                  className={`${styles.navButton} ${isActive ? styles.libraryButtonActive : styles.navButtonInactive}`}
+                  style={{ fontWeight: isActive ? 600 : 500 }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
                     e.currentTarget.style.color = '#FFF';

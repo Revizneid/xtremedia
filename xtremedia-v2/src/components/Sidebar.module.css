@@ -1,0 +1,133 @@
+.mobileOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  z-index: 90;
+}
+
+.sidebar {
+  width: 260px;
+  height: 100vh;
+  position: fixed;
+  left: 0;
+  top: 0;
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  z-index: 95;
+  border-right: 1px solid var(--border-subtle);
+  background: rgba(8, 11, 17, 0.95);
+  backdrop-filter: var(--glass-blur);
+  overflow-y: auto;
+}
+
+.brandRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+  margin-bottom: 32px;
+}
+
+.brandColumn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brandLogo {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: var(--accent-gradient);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+}
+
+.brandTitle {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: #fff;
+}
+
+.brandAccent {
+  color: var(--accent-rose);
+}
+
+.brandTag {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--accent-indigo);
+  padding: 2px 6px;
+  border-radius: 6px;
+  letter-spacing: 0.5px;
+}
+
+.closeButton {
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.sectionLabel {
+  font-size: 11px;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--text-muted);
+  padding: 0 10px;
+  margin-bottom: 10px;
+  letter-spacing: 0.8px;
+}
+
+.menuList,
+.libraryList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.navButton {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 11px 14px;
+  border-radius: 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-weight: 500;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.navButtonActive {
+  background: var(--accent-gradient);
+  color: #fff;
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+}
+
+.navButtonInactive {
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.libraryButtonActive {
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--accent-indigo);
+}

@@ -9,6 +9,7 @@ import MobileBottomNav from '@/components/MobileBottomNav';
 import { INITIAL_SONGS, INITIAL_ARTISTS, INITIAL_ALBUMS, INITIAL_GENRES } from '@/lib/mockData';
 import { useAudioPlayer } from '@/context/AudioPlayerContext';
 import { Play, Pause, Disc, Mic2, Sparkles, Heart, Radio, ListMusic, Volume2 } from 'lucide-react';
+import styles from './page.module.css';
 
 export default function Home() {
   const [currentTab, setCurrentTab] = useState<string>('discover');
@@ -75,7 +76,7 @@ export default function Home() {
   }, [activeSongPool, selectedGenre, searchQuery, currentTab]);
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-primary)' }}>
+    <div className={styles.pageShell}>
       {/* Fixed / Mobile Drawer Sidebar */}
       <Sidebar
         currentTab={currentTab}
@@ -85,17 +86,7 @@ export default function Home() {
       />
 
       {/* Main Content Area */}
-      <main
-        className="main-content-layout"
-        style={{
-          marginLeft: 'var(--sidebar-width)',
-          flex: 1,
-          minHeight: '100vh',
-          display: 'flex',
-          flexDirection: 'column',
-          paddingBottom: 'calc(var(--player-height) + 32px)',
-        }}
-      >
+      <main className={`${styles.mainContent} main-content-layout`}>
         {/* Sticky Header */}
         <Header
           searchQuery={searchQuery}
@@ -107,7 +98,7 @@ export default function Home() {
         />
 
         {/* Dynamic Page Views */}
-        <div className="content-padding" style={{ padding: '32px', maxWidth: '1400px', width: '100%', margin: '0 auto' }}>
+        <div className={`${styles.contentPadding} content-padding`}>
           {currentTab === 'discover' && (
             <>
               {/* Hero Banner for Featured Trending Track */}
@@ -117,19 +108,19 @@ export default function Home() {
 
               {/* Albums Spotlight Carousel */}
               {!searchQuery && !selectedGenre && (
-                <div style={{ marginBottom: '40px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
+                <div className={styles.sectionBlock}>
+                  <div className={styles.sectionHeader}>
                     <div>
-                      <h3 style={{ fontSize: '22px', fontWeight: 700, color: '#FFF' }}>
+                      <h3 className={styles.sectionTitle}>
                         Album & Đĩa Tuyển Chọn
                       </h3>
-                      <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+                      <p className={styles.sectionSubtitle}>
                         Những đĩa nhạc gắn liền với kỷ niệm XtreMedia và xu hướng mới
                       </p>
                     </div>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '20px' }}>
+                  <div className={styles.albumGrid}>
                     {INITIAL_ALBUMS.map((album) => {
                       const albumSong = activeSongPool.find((s) => s.albumId === album.id) || activeSongPool[0];
                       const isAlbumCurrent = currentSong?.id === albumSong?.id;
@@ -138,8 +129,7 @@ export default function Home() {
                       return (
                         <div
                           key={album.id}
-                          className="glass-card"
-                          style={{ padding: '16px', cursor: 'pointer' }}
+                          className={`glass-card ${styles.albumCard}`}
                           onClick={() => {
                             if (!albumSong) return;
                             if (isAlbumCurrent) {
@@ -149,36 +139,13 @@ export default function Home() {
                             }
                           }}
                         >
-                          <div
-                            style={{
-                              position: 'relative',
-                              width: '100%',
-                              aspectRatio: '1',
-                              borderRadius: '12px',
-                              overflow: 'hidden',
-                              marginBottom: '14px',
-                            }}
-                          >
+                          <div className={styles.albumCoverWrap}>
                             <img
                               src={album.coverUrl}
                               alt={album.title}
-                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              className={styles.albumCover}
                             />
-                            <div
-                              style={{
-                                position: 'absolute',
-                                bottom: '10px',
-                                right: '10px',
-                                width: '40px',
-                                height: '40px',
-                                borderRadius: '50%',
-                                background: 'var(--accent-gradient)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                boxShadow: '0 4px 15px rgba(0,0,0,0.5)',
-                              }}
-                            >
+                            <div className={styles.albumPlayButton}>
                               {isAlbumPlaying ? (
                                 <Pause size={18} fill="#FFF" color="#FFF" />
                               ) : (
@@ -187,10 +154,10 @@ export default function Home() {
                             </div>
                           </div>
 
-                          <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#FFF', marginBottom: '4px' }}>
+                          <h4 className={styles.albumTitle}>
                             {album.title}
                           </h4>
-                          <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                          <p className={styles.albumMeta}>
                             {album.artistName}
                           </p>
                         </div>
@@ -216,38 +183,27 @@ export default function Home() {
               {/* Artists Spotlight */}
               {!searchQuery && !selectedGenre && (
                 <div style={{ marginTop: '20px' }}>
-                  <h3 style={{ fontSize: '22px', fontWeight: 700, color: '#FFF', marginBottom: '18px' }}>
+                  <h3 className={styles.sectionTitle} style={{ marginBottom: '18px' }}>
                     Nghệ Sĩ Nổi Bật
                   </h3>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '20px' }}>
+                  <div className={styles.artistGrid}>
                     {INITIAL_ARTISTS.map((artist) => (
                       <div
                         key={artist.id}
-                        className="glass-card"
-                        style={{ padding: '20px 16px', textAlign: 'center', cursor: 'pointer' }}
+                        className={`glass-card ${styles.artistCard}`}
                         onClick={() => {
                           const artistSong = activeSongPool.find((s) => s.artistId === artist.id) || activeSongPool[0];
                           if (artistSong) playSong(artistSong, activeSongPool);
                         }}
                       >
-                        <div
-                          style={{
-                            width: '110px',
-                            height: '110px',
-                            borderRadius: '50%',
-                            overflow: 'hidden',
-                            margin: '0 auto 14px',
-                            boxShadow: '0 6px 20px rgba(0,0,0,0.5)',
-                            border: '2px solid rgba(255, 255, 255, 0.1)',
-                          }}
-                        >
+                        <div className={styles.artistAvatarWrap}>
                           <img
                             src={artist.avatarUrl}
                             alt={artist.name}
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            className={styles.artistAvatar}
                           />
                         </div>
-                        <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#FFF', marginBottom: '4px' }}>
+                        <h4 className={styles.artistName}>
                           {artist.name}
                         </h4>
                         <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
@@ -279,13 +235,13 @@ export default function Home() {
 
           {currentTab === 'albums' && (
             <div>
-              <h3 style={{ fontSize: '24px', fontWeight: 700, color: '#FFF', marginBottom: '8px' }}>
+              <h3 className={styles.tabTitle}>
                 Bộ Sưu Tập Albums
               </h3>
-              <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '24px' }}>
+              <p className={styles.tabSubtitle}>
                 Tổng hợp các album tuyển tập chất lượng cao
               </p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '24px' }}>
+              <div className={styles.albumGridLarge}>
                 {INITIAL_ALBUMS.map((album) => (
                   <div key={album.id} className="glass-card" style={{ padding: '20px' }}>
                     <img
@@ -304,13 +260,13 @@ export default function Home() {
 
           {currentTab === 'artists' && (
             <div>
-              <h3 style={{ fontSize: '24px', fontWeight: 700, color: '#FFF', marginBottom: '8px' }}>
+              <h3 className={styles.tabTitle}>
                 Danh Sách Nghệ Sĩ
               </h3>
-              <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '24px' }}>
+              <p className={styles.tabSubtitle}>
                 Tất cả ca sĩ & ban nhạc trong hệ thống XtreMedia
               </p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '20px' }}>
+              <div className={styles.artistGridLarge}>
                 {INITIAL_ARTISTS.map((artist) => (
                   <div key={artist.id} className="glass-card" style={{ padding: '24px 18px', textAlign: 'center' }}>
                     <img
@@ -331,10 +287,10 @@ export default function Home() {
 
           {currentTab === 'my_playlist' && (
             <div>
-              <h3 style={{ fontSize: '24px', fontWeight: 700, color: '#FFF', marginBottom: '8px' }}>
+              <h3 className={styles.tabTitle}>
                 Playlist Cá Nhân Của Bạn
               </h3>
-              <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '24px' }}>
+              <p className={styles.tabSubtitle}>
                 Đã khắc phục hoàn toàn lỗi ghi đè playlist tập trung của bản 1.2
               </p>
               <SongList
@@ -346,12 +302,12 @@ export default function Home() {
           )}
 
           {currentTab === 'radio' && (
-            <div className="glass-card" style={{ padding: '48px', textAlign: 'center', maxWidth: '640px', margin: '40px auto' }}>
+            <div className={`glass-card ${styles.radioCard}`}>
               <Radio size={56} color="var(--accent-rose)" style={{ margin: '0 auto 20px' }} />
-              <h3 style={{ fontSize: '26px', fontWeight: 800, color: '#FFF', marginBottom: '12px' }}>
+              <h3 className={styles.radioCardTitle}>
                 XtreMedia 2000s Live Wave
               </h3>
-              <p style={{ fontSize: '15px', color: 'var(--text-secondary)', lineHeight: '1.6', marginBottom: '28px' }}>
+              <p className={styles.radioCardText}>
                 Kênh phát thanh trực tuyến tổng hợp những giai điệu vàng thời kỳ hoàng kim của làng nhạc Việt.
               </p>
               <button
