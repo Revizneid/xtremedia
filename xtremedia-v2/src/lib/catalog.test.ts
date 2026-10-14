@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { deriveCatalogFromSongs } from './catalog';
+import { deriveCatalogFromSongs, derivePersonalPlaylist, deriveRadioMix } from './catalog';
 import type { Song } from './types';
 
 const songs: Song[] = [
@@ -91,4 +91,22 @@ test('deriveCatalogFromSongs builds albums, artists and genres from real song da
 
   const genreNames = catalog.genres.map((genre) => genre.name).sort();
   assert.deepEqual(genreNames, ['Pop', 'Rock']);
+});
+
+test('derivePersonalPlaylist prioritizes the most relevant songs for a user mix', () => {
+  const playlist = derivePersonalPlaylist(songs, 3);
+
+  assert.deepEqual(
+    playlist.map((song) => song.id),
+    ['song-3', 'song-2', 'song-1']
+  );
+});
+
+test('deriveRadioMix creates a diverse live-wave queue from real catalog data', () => {
+  const radioMix = deriveRadioMix(songs, 2);
+
+  assert.deepEqual(
+    radioMix.map((song) => song.id),
+    ['song-3', 'song-2']
+  );
 });

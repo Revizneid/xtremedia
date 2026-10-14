@@ -11,6 +11,61 @@ const slugify = (value: string): string =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '') || 'item';
 
+export function derivePersonalPlaylist(songs: Song[], maxItems = 3): Song[] {
+  const validSongs = songs.filter((song) => song.status !== 'INACTIVE');
+
+  return [...validSongs]
+    .sort((a, b) => {
+      const monthDelta = (b.playCountMonth ?? 0) - (a.playCountMonth ?? 0);
+      if (monthDelta !== 0) return monthDelta;
+
+      const playDelta = (b.playCount ?? 0) - (a.playCount ?? 0);
+      if (playDelta !== 0) return playDelta;
+
+      return (b.downloadCount ?? 0) - (a.downloadCount ?? 0);
+    })
+    .slice(0, maxItems);
+}
+
+export function deriveRadioMix(songs: Song[], maxItems = 4): Song[] {
+  const validSongs = songs.filter((song) => song.status !== 'INACTIVE' && !song.isBroken);
+
+  const rankedSongs = [...validSongs].sort((a, b) => {
+    const playDelta = (b.playCount ?? 0) - (a.playCount ?? 0);
+    if (playDelta !== 0) return playDelta;
+
+    const monthDelta = (b.playCountMonth ?? 0) - (a.playCountMonth ?? 0);
+    if (monthDelta !== 0) return monthDelta;
+
+    return (b.downloadCount ?? 0) - (a.downloadCount ?? 0);
+  });
+
+  const picks: Song[] = [];
+  const seenGenres = new Set<string>();
+
+  for (const song of rankedSongs) {
+    const genreName = song.genreName?.trim() || 'Khác';
+    if (seenGenres.has(genreName)) continue;
+
+    picks.push(song);
+    seenGenres.add(genreName);
+
+    if (picks.length >= maxItems) break;
+  }
+
+  if (picks.length < maxItems) {
+    for (const song of rankedSongs) {
+      if (!picks.some((pick) => pick.id === song.id)) {
+        picks.push(song);
+      }
+
+      if (picks.length >= maxItems) break;
+    }
+  }
+
+  return picks;
+}
+
 export function deriveCatalogFromSongs(songs: Song[], genres: Genre[] = []) {
   const genreMap = new Map<string, Genre>();
 

@@ -7,7 +7,7 @@ import HeroBanner from '@/components/HeroBanner';
 import SongList from '@/components/SongList';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import { useAudioPlayer } from '@/context/AudioPlayerContext';
-import { deriveCatalogFromSongs } from '@/lib/catalog';
+import { deriveCatalogFromSongs, derivePersonalPlaylist, deriveRadioMix } from '@/lib/catalog';
 import type { Genre, Song } from '@/lib/types';
 import { Play, Pause, Disc, Mic2, Sparkles, Heart, Radio, ListMusic, Volume2, AlertTriangle, RefreshCcw, Music } from 'lucide-react';
 import styles from './page.module.css';
@@ -25,6 +25,8 @@ export default function Home() {
 
   const { playSong, currentSong, isPlaying, togglePlayPause } = useAudioPlayer();
   const catalog = useMemo(() => deriveCatalogFromSongs(songsList, genresList), [songsList, genresList]);
+  const personalPlaylist = useMemo(() => derivePersonalPlaylist(songsList, 3), [songsList]);
+  const radioMix = useMemo(() => deriveRadioMix(songsList, 4), [songsList]);
   const activeSongPool = songsList;
   const albums = catalog.albums;
   const artists = catalog.artists;
@@ -343,13 +345,21 @@ export default function Home() {
                 Playlist Cá Nhân Của Bạn
               </h3>
               <p className={styles.tabSubtitle}>
-                Đã khắc phục hoàn toàn lỗi ghi đè playlist tập trung của bản 1.2
+                Danh sách gợi ý được sắp xếp dựa trên lượt nghe gần đây và mức độ quan tâm thực tế.
               </p>
-              <SongList
-                songs={songsList.slice(0, Math.min(3, songsList.length))}
-                title="Bài Hát Đã Lưu Gần Đây"
-                subtitle="Danh sách bài hát yêu thích của tài khoản thành viên"
-              />
+              {personalPlaylist.length > 0 ? (
+                <SongList
+                  songs={personalPlaylist}
+                  title="Bài Hát Đã Lưu Gần Đây"
+                  subtitle="Danh sách nghe yêu thích tự động gợi ý từ dữ liệu nhạc đang có trong hệ thống"
+                />
+              ) : (
+                <div className={styles.stateCard}>
+                  <Music size={32} color="var(--accent-indigo)" />
+                  <h3 className={styles.stateTitle}>Playlist đang trống</h3>
+                  <p className={styles.stateText}>Chưa có bài hát phù hợp để gợi ý cho tài khoản của bạn.</p>
+                </div>
+              )}
             </div>
           )}
 
@@ -360,13 +370,36 @@ export default function Home() {
                 XtreMedia 2000s Live Wave
               </h3>
               <p className={styles.radioCardText}>
-                Kênh phát thanh trực tuyến tổng hợp những giai điệu vàng thời kỳ hoàng kim của làng nhạc Việt.
+                {radioMix.length > 0
+                  ? `Kênh phát thanh đang chạy theo chuỗi ${radioMix.length} bài được chọn từ catalog hiện có.`
+                  : 'Kênh phát thanh đang chờ dữ liệu để tạo luồng nghe mượt và đa dạng.'}
               </p>
+
+              {radioMix.length > 0 && (
+                <div style={{ marginBottom: '20px', display: 'grid', gap: '10px', width: '100%' }}>
+                  {radioMix.map((song) => (
+                    <div key={song.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: '10px', background: 'rgba(255,255,255,0.04)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                        <img src={song.coverUrl} alt={song.title} style={{ width: '42px', height: '42px', borderRadius: '10px', objectFit: 'cover' }} />
+                        <div style={{ minWidth: 0 }}>
+                          <p style={{ color: '#FFF', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{song.title}</p>
+                          <p style={{ color: 'var(--text-muted)', fontSize: '12px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{song.artistName}</p>
+                        </div>
+                      </div>
+                      <span style={{ fontSize: '12px', color: 'var(--accent-indigo)', fontWeight: 700 }}>{song.genreName || 'Khác'}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <button
                 className="btn-primary"
                 onClick={() => {
-                  const radioSong = songsList[1] ?? songsList[0];
-                  if (radioSong) playSong(radioSong, activeSongPool);
+                  const radioSong = radioMix[0] ?? songsList[1] ?? songsList[0];
+                  if (radioSong) {
+                    const queue = radioMix.length > 0 ? radioMix : activeSongPool;
+                    playSong(radioSong, queue);
+                  }
                 }}
                 style={{ margin: '0 auto', padding: '14px 36px', fontSize: '16px' }}
               >
