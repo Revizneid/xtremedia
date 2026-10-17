@@ -4,11 +4,6 @@ const { spawnSync } = require('child_process');
 
 const rootDir = path.resolve(__dirname, '..');
 const projectDirName = path.basename(rootDir);
-const targets = [
-  path.join(rootDir, '.next'),
-  path.join(rootDir, 'node_modules', '.prisma'),
-  path.join(rootDir, 'node_modules', '.next'),
-];
 
 function removeDir(targetPath) {
   if (!fs.existsSync(targetPath)) {
@@ -75,13 +70,54 @@ function stopProjectNodeProcesses() {
   }
 }
 
-stopProjectNodeProcesses();
+function ensurePrismaClient(root = rootDir) {
+  const clientDir = path.join(root, 'node_modules', '.prisma', 'client');
+  if (fs.existsSync(clientDir)) {
+    return;
+  }
 
-for (const target of targets) {
-  removeDir(target);
+  const prismaBinary = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+  console.log('[prepare-prisma] Prisma client is missing; running prisma generate...');
+
+  const result = spawnSync(prismaBinary, ['prisma', 'generate'], {
+    cwd: root,
+    stdio: 'inherit',
+  });
+
+  if (result.status !== 0) {
+    throw new Error('[prepare-prisma] Prisma generate failed.');
+  }
 }
 
-const prismaRoot = path.join(rootDir, 'node_modules', '.prisma');
-removeStalePrismaTempFiles(prismaRoot);
+function preparePrismaArtifacts(root = rootDir) {
+  stopProjectNodeProcesses();
 
-console.log('[prepare-prisma] Prisma cache and temp artifacts cleaned.');
+  const targets = [
+    path.join(root, '.next'),
+    path.join(root, 'node_modules', '.next'),
+  ];
+
+  for (const target of targets) {
+    removeDir(target);
+  }
+
+  const prismaRoot = path.join(root, 'node_modules', '.prisma');
+  removeStalePrismaTempFiles(prismaRoot);
+  ensurePrismaClient(root);
+
+  console.log('[prepare-prisma] Prisma cache and temp artifacts cleaned, generated client preserved.');
+  return { rootDir: root, targets };
+}
+
+if (require.main === module) {
+  preparePrismaArtifacts();
+}
+
+module.exports = {
+  preparePrismaArtifacts,
+  ensurePrismaClient,
+  removeDir,
+  removeStalePrismaTempFiles,
+  stopProjectNodeProcesses,
+  isTempArtifactName,
+};

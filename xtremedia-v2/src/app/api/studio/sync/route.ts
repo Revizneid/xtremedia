@@ -7,6 +7,9 @@ import { Song } from '@/lib/types';
 import { enforceRateLimit, isHttpsUrl, parseJsonBody } from '@/lib/security';
 import { buildStudioSyncIdempotencyKey, validateStudioSecret } from '@/lib/studioSync';
 
+export const runtime = 'nodejs';
+export const maxDuration = 30;
+
 function removeVietnameseTones(str: string): string {
   return str
     .normalize('NFD')
@@ -36,6 +39,29 @@ function getStudioSecret(): string | null {
 
 function validateRequestSecret(request: NextRequest): boolean {
   return validateStudioSecret(request.headers.get('authorization'), getStudioSecret());
+}
+
+function buildStructuredErrorLog(step: string, err: unknown) {
+  const errorObject = err as {
+    name?: string;
+    message?: string;
+    code?: string;
+    meta?: { target?: string | string[] };
+    stack?: string;
+  };
+  const stackLines = errorObject?.stack?.split('\n').slice(0, 8).join('\n') || '';
+
+  return {
+    errorId: crypto.randomUUID(),
+    step,
+    name: errorObject?.name || 'Error',
+    prismaCode: errorObject?.code || null,
+    metaTarget: Array.isArray(errorObject?.meta?.target)
+      ? errorObject.meta.target
+      : errorObject?.meta?.target || null,
+    message: errorObject?.message || String(err),
+    stack: stackLines,
+  };
 }
 
 export async function OPTIONS() {
@@ -84,6 +110,8 @@ export async function POST(request: NextRequest) {
     return rateLimitResponse;
   }
 
+  let step = 'validate-auth';
+
   try {
     const expectedSecret = getStudioSecret();
     if (!expectedSecret) {
@@ -94,6 +122,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'unauthorized' }, { status: 401 });
     }
 
+    step = 'parse-body';
     const bodyResult = await parseJsonBody(request, studioSyncSchema);
     if (!bodyResult.ok) {
       return bodyResult.response;
@@ -118,6 +147,7 @@ export async function POST(request: NextRequest) {
     const normalizedAudioUrl = String(audioUrl).trim();
     const titleAscii = removeVietnameseTones(cleanTitle);
     const slug = generateSlug(cleanTitle);
+    step = 'build-idempotency';
     const idempotencyKey = (request.headers.get('Idempotency-Key') || '').trim() || buildStudioSyncIdempotencyKey({
       audioUrl: normalizedAudioUrl,
       id,
@@ -141,6 +171,7 @@ export async function POST(request: NextRequest) {
       trimEnd: Number(trimEnd ?? 0),
     })).digest('hex');
 
+    step = 'sync-db';
     const syncResult = await db.syncSongFromStudio({
       idempotencyKey,
       payloadHash,
@@ -202,7 +233,20 @@ export async function POST(request: NextRequest) {
       message: 'XtreMedia Studio đã đồng bộ bài hát thành công!',
     }, { status: 201 });
   } catch (err: unknown) {
-    console.error('Studio sync error:', err);
-    return NextResponse.json({ success: false, error: 'Lỗi máy chủ khi đồng bộ bài hát' }, { status: 500 });
+    const structured = buildStructuredErrorLog(step, err);
+    const isTransactionNotFound = structured.prismaCode === 'P2028' || /Transaction API error|Transaction not found/i.test(structured.message);
+    console.error(JSON.stringify(structured));
+
+    if (isTransactionNotFound) {
+      return NextResponse.json(
+        { success: false, error: 'internal_error', errorId: structured.errorId },
+        { status: 503, headers: { 'Retry-After': '5' } }
+      );
+    }
+
+    return NextResponse.json(
+      { success: false, error: 'internal_error', errorId: structured.errorId },
+      { status: 500 }
+    );
   }
 }
