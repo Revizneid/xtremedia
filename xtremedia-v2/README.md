@@ -20,6 +20,8 @@ npm run dev
 Open http://localhost:3000.
 
 > Important: keep `.env.local` out of Git. `JWT_SECRET` and `STUDIO_SYNC_SECRET` must be unique per environment and at least 32 characters long.
+>
+> `NEXT_PUBLIC_*` values are build-time values. `NEXT_PUBLIC_APP_URL` must point to the real production origin in production; do not rely on localhost or an implicit default when deploying. Add explicit `ALLOWED_ORIGINS` for trusted admin origins when needed.
 
 ## Windows Prisma cache fix (EPERM rename issue)
 

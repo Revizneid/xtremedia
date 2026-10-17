@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { env } from '@/lib/env';
 
 export const MAX_REQUEST_BODY_BYTES = 256 * 1024;
 
@@ -59,41 +58,80 @@ export function enforceRateLimit(
   return null;
 }
 
+function normalizeOrigin(value: string | null | undefined): string | null {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
+    return url.origin.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+function getRequestOrigin(request: NextRequest): string | null {
+  const host =
+    (request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? request.nextUrl.host)
+      .split(',')[0]
+      .trim();
+  if (!host) return null;
+  const proto = (request.headers.get('x-forwarded-proto') ?? request.nextUrl.protocol.replace(':', ''))
+    .split(',')[0]
+    .trim();
+  return normalizeOrigin(`${proto}://${host}`);
+}
+
+function getAllowedOrigins(): Set<string> {
+  const allowed = new Set<string>();
+  const add = (value: string | undefined) => {
+    const origin = normalizeOrigin(value?.trim());
+    if (origin) allowed.add(origin);
+  };
+
+  for (const item of (process.env.ALLOWED_ORIGINS ?? '').split(',')) add(item);
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    add(`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`);
+  }
+  // Chỉ thêm nếu được khai báo tường minh (không dùng giá trị mặc định localhost)
+  add(process.env.NEXT_PUBLIC_APP_URL);
+  return allowed;
+}
+
 export function enforceAdminOrigin(request: NextRequest): NextResponse | null {
-  const originHeader = request.headers.get('origin');
-  if (!originHeader) {
+  // Trình duyệt hiện đại báo rõ request cùng nguồn gốc
+  if (request.headers.get('sec-fetch-site') === 'same-origin') {
     return null;
   }
 
-  try {
-    const allowedUrl = new URL(env.NEXT_PUBLIC_APP_URL);
-    const requestOrigin = new URL(originHeader);
+  const origin =
+    normalizeOrigin(request.headers.get('origin')) ?? normalizeOrigin(request.headers.get('referer'));
+  const requestOrigin = getRequestOrigin(request);
 
-    const normalizeHost = (value: string) => value.replace(/\[|\]/g, '').split(':')[0].toLowerCase();
-    const canonicalLoopbackHost = (value: string) => {
-      const normalized = normalizeHost(value);
-      return normalized === '127.0.0.1' || normalized === '::1' || normalized === 'localhost' ? 'localhost' : normalized;
-    };
-    const allowedHost = canonicalLoopbackHost(allowedUrl.hostname);
-    const requestHost = canonicalLoopbackHost(requestOrigin.hostname);
-
-    const sameOrigin = requestOrigin.origin === allowedUrl.origin;
-    const sameHost = requestHost === allowedHost;
-
-    if (!sameOrigin && !sameHost) {
-      return NextResponse.json(
-        { success: false, error: 'Origin không được phép' },
-        { status: 403 }
-      );
-    }
-  } catch {
-    return NextResponse.json(
-      { success: false, error: 'Origin không hợp lệ' },
-      { status: 403 }
-    );
+  if (origin && (origin === requestOrigin || getAllowedOrigins().has(origin))) {
+    return null;
   }
 
-  return null;
+  const errorId = crypto.randomUUID();
+  console.warn(
+    JSON.stringify({
+      event: 'admin_origin_rejected',
+      errorId,
+      method: request.method,
+      path: request.nextUrl.pathname,
+      origin: request.headers.get('origin'),
+      requestOrigin,
+      secFetchSite: request.headers.get('sec-fetch-site'),
+    })
+  );
+
+  return NextResponse.json(
+    {
+      success: false,
+      error: origin ? 'Origin không được phép' : 'Thiếu thông tin Origin',
+      errorId,
+    },
+    { status: 403 }
+  );
 }
 
 export function isHttpsUrl(value: string, maxLength = 2048): boolean {

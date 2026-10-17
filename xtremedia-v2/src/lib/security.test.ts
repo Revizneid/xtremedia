@@ -4,12 +4,62 @@ import { NextRequest } from 'next/server';
 import { enforceAdminOrigin } from './security';
 import { DEFAULT_FALLBACK_AUDIO_URL, isExpectedPlaybackAbort, sanitizeAudioUrl } from './audioPlayback';
 
-test('allows same local host with a different port', () => {
-  const request = new NextRequest('http://localhost:3000/api/admin/songs', {
+const originalAllowedOrigins = process.env.ALLOWED_ORIGINS;
+const originalAppUrl = process.env.NEXT_PUBLIC_APP_URL;
+
+function withOriginEnv(overrides: Record<string, string | undefined>) {
+  Object.entries(overrides).forEach(([key, value]) => {
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+  });
+}
+
+test.afterEach(() => {
+  if (originalAllowedOrigins === undefined) delete process.env.ALLOWED_ORIGINS;
+  else process.env.ALLOWED_ORIGINS = originalAllowedOrigins;
+
+  if (originalAppUrl === undefined) delete process.env.NEXT_PUBLIC_APP_URL;
+  else process.env.NEXT_PUBLIC_APP_URL = originalAppUrl;
+});
+
+test('allows same-origin requests identified by sec-fetch-site', () => {
+  const request = new NextRequest('https://app.example.com/api/admin/songs', {
     method: 'PUT',
     headers: {
-      origin: 'http://localhost:3001',
-      host: 'localhost:3000',
+      'sec-fetch-site': 'same-origin',
+      host: 'app.example.com',
+    },
+  });
+
+  assert.equal(enforceAdminOrigin(request), null);
+});
+
+test('allows origin matching x-forwarded-host and x-forwarded-proto without env fallback', () => {
+  withOriginEnv({ NEXT_PUBLIC_APP_URL: undefined, ALLOWED_ORIGINS: undefined });
+
+  const request = new NextRequest('https://app.example.com/api/admin/songs', {
+    method: 'PUT',
+    headers: {
+      origin: 'https://app.example.com',
+      'x-forwarded-host': 'app.example.com',
+      'x-forwarded-proto': 'https',
+      host: 'internal-proxy:3000',
+    },
+  });
+
+  assert.equal(enforceAdminOrigin(request), null);
+});
+
+test('normalizes trailing slash and uppercase host before accepting a matching origin', () => {
+  withOriginEnv({ NEXT_PUBLIC_APP_URL: undefined, ALLOWED_ORIGINS: undefined });
+
+  const request = new NextRequest('https://app.example.com/api/admin/songs', {
+    method: 'PUT',
+    headers: {
+      origin: 'https://APP.EXAMPLE.com/',
+      'x-forwarded-host': 'app.example.com',
+      'x-forwarded-proto': 'https',
+      host: 'internal-proxy:3000',
     },
   });
 
@@ -17,11 +67,64 @@ test('allows same local host with a different port', () => {
 });
 
 test('blocks a different remote origin', () => {
-  const request = new NextRequest('http://localhost:3000/api/admin/songs', {
+  const request = new NextRequest('https://app.example.com/api/admin/songs', {
     method: 'PUT',
     headers: {
       origin: 'https://example.com',
-      host: 'localhost:3000',
+      host: 'app.example.com',
+    },
+  });
+
+  assert.equal(enforceAdminOrigin(request)?.status, 403);
+});
+
+test('blocks a different subdomain unless explicitly whitelisted', () => {
+  withOriginEnv({ ALLOWED_ORIGINS: 'https://admin.example.com' });
+
+  const request = new NextRequest('https://app.example.com/api/admin/songs', {
+    method: 'PUT',
+    headers: {
+      origin: 'https://www.example.com',
+      host: 'app.example.com',
+    },
+  });
+
+  assert.equal(enforceAdminOrigin(request)?.status, 403);
+});
+
+test('allows referer when origin is missing but the request is same source', () => {
+  const request = new NextRequest('https://app.example.com/api/admin/songs', {
+    method: 'PUT',
+    headers: {
+      referer: 'https://app.example.com/api/admin/songs',
+      'x-forwarded-host': 'app.example.com',
+      'x-forwarded-proto': 'https',
+      host: 'internal-proxy:3000',
+    },
+  });
+
+  assert.equal(enforceAdminOrigin(request), null);
+});
+
+test('rejects requests missing both origin and referer', () => {
+  const request = new NextRequest('https://app.example.com/api/admin/songs', {
+    method: 'PUT',
+    headers: {
+      host: 'app.example.com',
+    },
+  });
+
+  const response = enforceAdminOrigin(request);
+  assert.equal(response?.status, 403);
+  assert.match(response?.headers.get('content-type') || '', /application\/json/);
+});
+
+test('treats origin=null as missing and rejects it', () => {
+  const request = new NextRequest('https://app.example.com/api/admin/songs', {
+    method: 'PUT',
+    headers: {
+      origin: 'null',
+      host: 'app.example.com',
     },
   });
 

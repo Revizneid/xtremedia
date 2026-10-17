@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 const buildFallbacks = {
   NEXT_PUBLIC_APP_URL: 'http://localhost:3000',
+  ALLOWED_ORIGINS: '',
   DATABASE_URL: '',
   DIRECT_URL: '',
 } as const;
@@ -34,6 +35,7 @@ const envSchema = z.object({
   JWT_SECRET: z.string().trim().min(32, 'JWT_SECRET phải có ít nhất 32 ký tự'),
   STUDIO_SYNC_SECRET: z.string().trim().min(32, 'STUDIO_SYNC_SECRET phải có ít nhất 32 ký tự'),
   NEXT_PUBLIC_APP_URL: z.string().trim().url('NEXT_PUBLIC_APP_URL phải là URL hợp lệ').default(buildFallbacks.NEXT_PUBLIC_APP_URL),
+  ALLOWED_ORIGINS: z.string().trim().optional().or(z.literal('')).default(''),
   DATABASE_URL: z.string().trim().url('DATABASE_URL phải là URL hợp lệ').optional().or(z.literal('')).default(''),
   DIRECT_URL: z.string().trim().url('DIRECT_URL phải là URL hợp lệ').optional().or(z.literal('')).default(''),
 });
@@ -43,15 +45,23 @@ export type AppEnv = z.infer<typeof envSchema>;
 export function parseEnv(rawEnv: Record<string, string | undefined> = process.env): AppEnv {
   const nodeEnv = (rawEnv.NODE_ENV ?? 'development') as AppEnv['NODE_ENV'];
 
+  const nextPublicAppUrl =
+    rawEnv.NEXT_PUBLIC_APP_URL?.trim() || (nodeEnv === 'production' ? '' : buildFallbacks.NEXT_PUBLIC_APP_URL);
+
   const normalizedEnv = {
     ...rawEnv,
     NODE_ENV: nodeEnv,
     JWT_SECRET: resolveRequiredSecret(rawEnv.JWT_SECRET, 'JWT_SECRET', nodeEnv),
     STUDIO_SYNC_SECRET: resolveRequiredSecret(rawEnv.STUDIO_SYNC_SECRET, 'STUDIO_SYNC_SECRET', nodeEnv),
-    NEXT_PUBLIC_APP_URL: rawEnv.NEXT_PUBLIC_APP_URL ?? buildFallbacks.NEXT_PUBLIC_APP_URL,
+    NEXT_PUBLIC_APP_URL: nextPublicAppUrl,
+    ALLOWED_ORIGINS: rawEnv.ALLOWED_ORIGINS ?? buildFallbacks.ALLOWED_ORIGINS,
     DATABASE_URL: rawEnv.DATABASE_URL ?? buildFallbacks.DATABASE_URL,
     DIRECT_URL: rawEnv.DIRECT_URL ?? buildFallbacks.DIRECT_URL,
   };
+
+  if (nodeEnv === 'production' && !normalizedEnv.NEXT_PUBLIC_APP_URL) {
+    throw new Error('Missing required environment variable: NEXT_PUBLIC_APP_URL. Set it to the production origin before build or deploy.');
+  }
 
   const parsed = envSchema.safeParse(normalizedEnv);
 
