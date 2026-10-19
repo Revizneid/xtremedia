@@ -150,8 +150,11 @@ function applyLegacyFilters(songs: Song[], options: SongQueryOptions): Song[] {
 
 export const songRepo = {
   async getSongs(options: SongQueryOptions = {}): Promise<Song[]> {
+    const isProduction = String(process.env.NODE_ENV ?? '') === 'production';
+
     try {
       const where: Prisma.SongWhereInput = {
+        ...(isProduction ? { status: { not: 'INACTIVE' } } : {}),
         ...(options.genreId ? { genreId: options.genreId } : {}),
         ...(options.artistId ? { artistId: options.artistId } : {}),
         ...(options.search
@@ -177,18 +180,30 @@ export const songRepo = {
         orderBy,
       });
 
-      if (songs.length > 0) {
-        return songs.map(toLegacySong);
+      const publicSongs = songs
+        .filter((song) => song.status !== 'INACTIVE' && !song.isBroken)
+        .map(toLegacySong);
+
+      if (songs.length > 0 || isProduction) {
+        return publicSongs;
       }
     } catch {
-      // fall back to the legacy store when the database is empty or unavailable
+      if (isProduction) {
+        return [];
+      }
+    }
+
+    if (isProduction) {
+      return [];
     }
 
     const fallbackSongs = await readLegacyStoreSongs();
-    return applyLegacyFilters(fallbackSongs, options);
+    return applyLegacyFilters(fallbackSongs.filter((song) => song.status !== 'INACTIVE' && !song.isBroken), options);
   },
 
   async getSongById(id: string): Promise<Song | null> {
+    const isProduction = String(process.env.NODE_ENV ?? '') === 'production';
+
     try {
       const record = await prisma.song.findUnique({
         where: { id },
@@ -196,14 +211,20 @@ export const songRepo = {
       });
 
       if (record) {
-        return toLegacySong(record);
+        return record.status === 'INACTIVE' || record.isBroken ? null : toLegacySong(record);
       }
     } catch {
-      // fall through to legacy store lookup below
+      if (isProduction) {
+        return null;
+      }
+    }
+
+    if (isProduction) {
+      return null;
     }
 
     const fallbackSongs = await readLegacyStoreSongs();
-    return fallbackSongs.find((song) => song.id === id) ?? null;
+    return fallbackSongs.find((song) => song.id === id && song.status !== 'INACTIVE' && !song.isBroken) ?? null;
   },
 
   async addSong(input: Partial<Song> & Pick<Song, 'title' | 'artistId' | 'audioUrl'>): Promise<Song> {
@@ -352,7 +373,32 @@ export const songRepo = {
 
   async deleteSong(id: string): Promise<boolean> {
     try {
-      await prisma.song.delete({ where: { id } });
+      await prisma.$transaction(async (tx) => {
+        const record = await tx.song.findUnique({ where: { id } });
+        if (!record) {
+          throw new Error('missing-song');
+        }
+
+        const relatedIdempotencyKeys = [
+          record.videoId ? `${record.videoId}|${record.trimStart}|${record.trimEnd}` : null,
+          `${record.audioUrl}|${record.trimStart}|${record.trimEnd}`,
+        ].filter(Boolean);
+
+        await tx.syncLog.deleteMany({
+          where: {
+            OR: [
+              { idempotencyKey: { in: relatedIdempotencyKeys as string[] } },
+              { payloadHash: { in: [
+                record.audioUrl,
+                `${record.title}|${record.artistId}|${record.audioUrl}`,
+                `${record.videoId ?? record.id}|${record.trimStart}|${record.trimEnd}`,
+              ] } },
+            ],
+          },
+        });
+
+        await tx.song.delete({ where: { id } });
+      });
       return true;
     } catch {
       return false;
@@ -501,6 +547,31 @@ export const songRepo = {
         },
       };
     } catch {
+      if (process.env.NODE_ENV === 'production') {
+        return {
+          totalSongs: 0,
+          totalArtists: 0,
+          totalAlbums: 0,
+          totalGenres: 0,
+          totalUsers: 0,
+          brokenSongsCount: 0,
+          totalPlays: 0,
+          totalDownloads: 0,
+          topSongs: [],
+          recentBrokenSongs: [],
+          syncSummary: {
+            total: 0,
+            success: 0,
+            reused: 0,
+            failed: 0,
+            hasSynced: false,
+            lastSyncStatus: 'NEVER',
+            lastSyncAt: null,
+            recent: [],
+          },
+        };
+      }
+
       const fallbackSongs = await readLegacyStoreSongs();
       const totalPlays = fallbackSongs.reduce((sum, song) => sum + song.playCount, 0);
       const totalDownloads = fallbackSongs.reduce((sum, song) => sum + song.downloadCount, 0);

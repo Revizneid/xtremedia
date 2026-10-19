@@ -82,23 +82,25 @@ function isUniqueConstraintError(error: unknown): boolean {
 }
 
 function buildSongMatchWhere(payload: {
-  cleanTitle: string;
-  cleanArtist: string;
   normalizedAudioUrl: string;
   videoId?: string | null;
+  trimStart?: number;
+  trimEnd?: number;
 }): { OR: Array<Record<string, unknown>> } {
-  const clauses: Array<Record<string, unknown>> = [
-    { audioUrl: payload.normalizedAudioUrl },
-    {
-      AND: [
-        { title: { equals: payload.cleanTitle, mode: 'insensitive' } },
-        { artist: { is: { name: { equals: payload.cleanArtist, mode: 'insensitive' } } } },
-      ],
-    },
-  ];
+  const clauses: Array<Record<string, unknown>> = [];
+
+  if (payload.normalizedAudioUrl) {
+    clauses.push({ audioUrl: payload.normalizedAudioUrl });
+  }
 
   if (payload.videoId) {
-    clauses.unshift({ videoId: { equals: payload.videoId, mode: 'insensitive' } });
+    clauses.push({
+      AND: [
+        { videoId: { equals: payload.videoId, mode: 'insensitive' } },
+        { trimStart: Number(payload.trimStart ?? 0) },
+        { trimEnd: Number(payload.trimEnd ?? 0) },
+      ],
+    });
   }
 
   return { OR: clauses };
@@ -228,7 +230,7 @@ export const syncLogRepo = {
     const existingLog = await prisma.syncLog.findUnique({ where: { idempotencyKey: input.idempotencyKey } });
     if (existingLog) {
       const record = await prisma.song.findFirst({
-        where: buildSongMatchWhere({ cleanTitle, cleanArtist, normalizedAudioUrl, videoId }),
+        where: buildSongMatchWhere({ normalizedAudioUrl, videoId, trimStart, trimEnd }),
         include: {
           artist: true,
           album: true,
@@ -236,20 +238,31 @@ export const syncLogRepo = {
         },
       });
 
+      if (record) {
+        await prisma.syncLog.update({
+          where: { id: existingLog.id },
+          data: {
+            payloadHash: input.payloadHash,
+            status: 'REUSED',
+            error: null,
+          },
+        });
+
+        return {
+          duplicate: true,
+          song: toLegacySong(record),
+          status: 'REUSED',
+        };
+      }
+
       await prisma.syncLog.update({
         where: { id: existingLog.id },
         data: {
           payloadHash: input.payloadHash,
-          status: 'REUSED',
+          status: 'SUCCESS',
           error: null,
         },
       });
-
-      return {
-        duplicate: true,
-        song: record ? toLegacySong(record) : null,
-        status: 'REUSED',
-      };
     }
 
     const artist = await upsertArtist({ name: cleanArtist, coverUrl: input.payload.coverUrl });
@@ -267,7 +280,7 @@ export const syncLogRepo = {
       : null;
 
     const existingSong = await prisma.song.findFirst({
-      where: buildSongMatchWhere({ cleanTitle, cleanArtist, normalizedAudioUrl, videoId }),
+      where: buildSongMatchWhere({ normalizedAudioUrl, videoId, trimStart, trimEnd }),
       include: {
         artist: true,
         album: true,
@@ -301,7 +314,7 @@ export const syncLogRepo = {
     const atomicResult = await prisma.$transaction(
       async (tx) => {
         const sameSong = await tx.song.findFirst({
-          where: buildSongMatchWhere({ cleanTitle, cleanArtist, normalizedAudioUrl, videoId }),
+          where: buildSongMatchWhere({ normalizedAudioUrl, videoId, trimStart, trimEnd }),
           include: {
             artist: true,
             album: true,

@@ -149,6 +149,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { title, artistName, genreName, albumTitle, audioUrl, coverUrl, durationSeconds, bitrateKbps, lyricsLrc, id, videoId, trimStart, trimEnd } = bodyResult.data;
+    const startedAt = Date.now();
     if (!isHttpsUrl(audioUrl)) {
       return NextResponse.json(
         { success: false, error: 'audioUrl phải là URL https hợp lệ' },
@@ -218,11 +219,26 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    const outcome = syncResult.duplicate ? 'reused' : 'created';
+    const songId = syncResult.song?.id ?? null;
+    const refreshedSong = songId ? await db.getSongById(songId) : null;
+    const payloadForResponse = refreshedSong ?? syncResult.song ?? null;
+    const durationMs = Date.now() - startedAt;
+    console.log(JSON.stringify({
+      event: 'studio_sync',
+      outcome,
+      songId,
+      videoId,
+      durationMs,
+    }));
+
     if (syncResult.duplicate) {
       return NextResponse.json({
         success: true,
+        outcome: 'reused',
         duplicate: true,
-        song: syncResult.song,
+        songId,
+        song: payloadForResponse,
         message: 'Bài hát đã được đồng bộ trước đó và không tạo bản ghi mới.',
       }, { status: 200 });
     }
@@ -253,7 +269,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      song: syncResult.song || newSong,
+      outcome: 'created',
+      duplicate: false,
+      songId: payloadForResponse?.id ?? newSong.id,
+      song: payloadForResponse ?? newSong,
       message: 'XtreMedia Studio đã đồng bộ bài hát thành công!',
     }, { status: 201 });
   } catch (err: unknown) {
