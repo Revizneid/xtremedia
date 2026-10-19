@@ -38,11 +38,15 @@ export default function Home() {
     setCatalogError(null);
 
     try {
-      const [songsData, genresData, heroData] = await Promise.all([
+      const [songsResult, genresResult, heroResult] = await Promise.allSettled([
         apiFetchJson<{ songs?: Song[] }>('/api/songs', { cache: 'no-store' }),
         apiFetchJson<{ genres?: Genre[] }>('/api/genres', { cache: 'no-store' }),
         apiFetchJson<{ config?: { songId?: string } }>('/api/hero', { cache: 'no-store' }),
       ]);
+
+      const songsData = songsResult.status === 'fulfilled' ? songsResult.value : null;
+      const genresData = genresResult.status === 'fulfilled' ? genresResult.value : null;
+      const heroData = heroResult.status === 'fulfilled' ? heroResult.value : null;
 
       const songs = Array.isArray(songsData?.songs) ? songsData.songs : [];
       const nextGenres = Array.isArray(genresData?.genres) ? genresData.genres : [];
@@ -51,12 +55,15 @@ export default function Home() {
       setGenresList(nextGenres);
 
       if (songs.length > 0) {
-        const heroSong = heroData?.config?.songId
-          ? songs.find((song: Song) => song.id === heroData?.config?.songId)
-          : null;
+        const heroSongId = heroData?.config?.songId;
+        const heroSong = heroSongId ? songs.find((song: Song) => song.id === heroSongId) : null;
         setFeaturedSong(heroSong || songs[0]);
       } else {
         setFeaturedSong(null);
+      }
+
+      if (songsResult.status === 'rejected' && genresResult.status === 'rejected' && heroResult.status === 'rejected') {
+        throw new Error('All catalog requests failed');
       }
     } catch (err) {
       console.warn('Could not fetch music catalog from API:', err);

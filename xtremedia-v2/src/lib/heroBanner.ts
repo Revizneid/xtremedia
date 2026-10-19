@@ -23,9 +23,13 @@ export const defaultHeroBannerConfig: HeroBannerConfig = {
 };
 
 export async function getHeroBannerConfig(): Promise<HeroBannerConfig> {
-  const active = await heroRepo.getActive();
-  if (active.length > 0) {
-    return toLegacyHeroConfig(active[0]);
+  try {
+    const active = await heroRepo.getActive();
+    if (active.length > 0) {
+      return toLegacyHeroConfig(active[0]);
+    }
+  } catch (error) {
+    console.warn('Hero banner DB unavailable, using fallback config', error);
   }
 
   const fileFallback = await readLegacyHeroBannerFile();
