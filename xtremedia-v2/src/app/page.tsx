@@ -10,6 +10,7 @@ import { useAudioPlayer } from '@/context/AudioPlayerContext';
 import { deriveCatalogFromSongs, derivePersonalPlaylist, deriveRadioMix } from '@/lib/catalog';
 import type { Genre, Song } from '@/lib/types';
 import { Play, Pause, Disc, Mic2, Sparkles, Heart, Radio, ListMusic, Volume2, AlertTriangle, RefreshCcw, Music } from 'lucide-react';
+import { apiFetchJson } from '@/lib/apiFetchJson';
 import styles from './page.module.css';
 
 export default function Home() {
@@ -37,15 +38,11 @@ export default function Home() {
     setCatalogError(null);
 
     try {
-      const [songsResponse, genresResponse, heroResponse] = await Promise.all([
-        fetch('/api/songs', { cache: 'no-store' }),
-        fetch('/api/genres', { cache: 'no-store' }),
-        fetch('/api/hero', { cache: 'no-store' }),
+      const [songsData, genresData, heroData] = await Promise.all([
+        apiFetchJson<{ songs?: Song[] }>('/api/songs', { cache: 'no-store' }),
+        apiFetchJson<{ genres?: Genre[] }>('/api/genres', { cache: 'no-store' }),
+        apiFetchJson<{ config?: { songId?: string } }>('/api/hero', { cache: 'no-store' }),
       ]);
-
-      const songsData = await songsResponse.json();
-      const genresData = await genresResponse.json();
-      const heroData = await heroResponse.json();
 
       const songs = Array.isArray(songsData?.songs) ? songsData.songs : [];
       const nextGenres = Array.isArray(genresData?.genres) ? genresData.genres : [];
@@ -55,7 +52,7 @@ export default function Home() {
 
       if (songs.length > 0) {
         const heroSong = heroData?.config?.songId
-          ? songs.find((song: Song) => song.id === heroData.config.songId)
+          ? songs.find((song: Song) => song.id === heroData?.config?.songId)
           : null;
         setFeaturedSong(heroSong || songs[0]);
       } else {
