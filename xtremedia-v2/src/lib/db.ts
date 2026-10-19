@@ -2,6 +2,7 @@ import { albumRepo } from './repositories/albumRepo';
 import { artistRepo } from './repositories/artistRepo';
 import { commentRepo } from './repositories/commentRepo';
 import { genreRepo } from './repositories/genreRepo';
+import { heroRepo } from './repositories/heroRepo';
 import { playlistRepo } from './repositories/playlistRepo';
 import { songRepo } from './repositories/songRepo';
 import { syncLogRepo } from './repositories/syncLogRepo';
@@ -83,6 +84,28 @@ export const db = {
   },
   async deleteGenre(id: string): Promise<boolean> {
     return genreRepo.deleteGenre(id);
+  },
+
+  async listHeroBanners() {
+    return heroRepo.list();
+  },
+  async getActiveHeroBanners() {
+    return heroRepo.getActive();
+  },
+  async getHeroBannerById(id: string) {
+    return heroRepo.getById(id);
+  },
+  async createHeroBanner(input: Parameters<typeof heroRepo.create>[0]) {
+    return heroRepo.create(input);
+  },
+  async updateHeroBanner(id: string, updates: Parameters<typeof heroRepo.update>[1]) {
+    return heroRepo.update(id, updates);
+  },
+  async deleteHeroBanner(id: string): Promise<boolean> {
+    return heroRepo.remove(id);
+  },
+  async reorderHeroBanners(ids: string[]) {
+    return heroRepo.reorder(ids);
   },
 
   async getPlaylist(): Promise<Song[]> {

@@ -10,6 +10,7 @@ import {
   RefreshCw,
   Sparkles,
 } from 'lucide-react';
+import { apiFetchJson } from '@/lib/apiFetchJson';
 import { Song } from '@/lib/types';
 
 export default function AdminBrokenSongsPage() {
@@ -21,12 +22,9 @@ export default function AdminBrokenSongsPage() {
   const fetchBrokenSongs = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/broken', { cache: 'no-store' });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success) {
-          setBrokenSongs(data.brokenSongs);
-        }
+      const data = await apiFetchJson<{ success?: boolean; brokenSongs?: Song[] }>('/api/admin/broken', { cache: 'no-store' });
+      if (data?.success) {
+        setBrokenSongs(data.brokenSongs || []);
       }
     } catch (err) {
       console.error('Failed to fetch broken songs:', err);
@@ -42,19 +40,18 @@ export default function AdminBrokenSongsPage() {
   const handleFixSong = async (songId: string) => {
     const replacementUrl = newUrls[songId];
     try {
-      const res = await fetch('/api/admin/broken', {
+      const data = await apiFetchJson<{ success?: boolean; message?: string; error?: string }>('/api/admin/broken', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         cache: 'no-store',
         body: JSON.stringify({ songId, newAudioUrl: replacementUrl || undefined }),
       });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setActionMessage(data.message);
+      if (data?.success) {
+        setActionMessage(data.message || 'Đã cập nhật liên kết thành công');
         fetchBrokenSongs();
         setTimeout(() => setActionMessage(null), 4000);
       } else {
-        alert(data.error || 'Khắc phục link thất bại');
+        alert(data?.error || 'Khắc phục link thất bại');
       }
     } catch (err) {
       console.error('Fix broken link error:', err);
@@ -65,8 +62,8 @@ export default function AdminBrokenSongsPage() {
     if (!window.confirm(`Xóa bài hát "${songTitle}" khỏi hệ thống?`)) return;
 
     try {
-      const res = await fetch(`/api/admin/songs/${songId}`, { method: 'DELETE', cache: 'no-store' });
-      if (res.ok) {
+      const data = await apiFetchJson<{ success?: boolean }>(`/api/admin/songs/${songId}`, { method: 'DELETE', cache: 'no-store' });
+      if (data?.success) {
         fetchBrokenSongs();
       }
     } catch (err) {

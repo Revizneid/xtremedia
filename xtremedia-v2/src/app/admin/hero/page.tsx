@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Sparkles, Save, Image as ImageIcon } from 'lucide-react';
+import { apiFetchJson } from '@/lib/apiFetchJson';
 
 interface HeroConfig {
   enabled: boolean;
@@ -24,23 +25,26 @@ export default function AdminHeroPage() {
   const [songs, setSongs] = useState<SongOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const fetchConfig = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/hero', { cache: 'no-store' });
-      if (res.ok) {
-        const data = await res.json();
-        setConfig(data.config || null);
-        setSongs(data.songs || []);
-      }
+      const data = await apiFetchJson<{ config?: HeroConfig; songs?: SongOption[] }>('/api/admin/hero', { method: 'GET', cache: 'no-store' });
+      setConfig(data?.config ?? null);
+      setSongs(data?.songs ?? []);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Không thể tải cấu hình Hero Banner';
+      setSaveError(message);
+      setConfig(null);
+      setSongs([]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchConfig();
+    void fetchConfig();
   }, []);
 
   const handleSave = async (e: React.FormEvent) => {
@@ -48,21 +52,29 @@ export default function AdminHeroPage() {
     if (!config) return;
 
     setSaving(true);
+    setSaveError(null);
+
     try {
-      const res = await fetch('/api/admin/hero', {
+      const payload = {
+        ...config,
+        title: config.title.trim() || 'Top Thịnh Hành Tháng',
+        subtitle: config.subtitle.trim() || 'XtreMedia Engine 2026',
+        ctaLabel: config.ctaLabel.trim() || 'Phát Ngay',
+      };
+
+      const data = await apiFetchJson<{ config?: HeroConfig; message?: string }>(`/api/admin/hero`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         cache: 'no-store',
-        body: JSON.stringify(config),
+        body: JSON.stringify(payload),
       });
-      if (res.ok) {
-        const data = await res.json();
-        setConfig(data.config);
-        alert('Cập nhật Hero Banner thành công!');
-      } else {
-        const error = await res.json();
-        alert(error.error || 'Lỗi cập nhật Hero Banner');
-      }
+
+      setConfig(data?.config ?? payload);
+      alert(data?.message || 'Cập nhật Hero Banner thành công!');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Lỗi cập nhật Hero Banner';
+      setSaveError(message);
+      alert(message);
     } finally {
       setSaving(false);
     }
@@ -80,6 +92,12 @@ export default function AdminHeroPage() {
           <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-secondary)' }}>Chọn bài hát nổi bật hiển thị trên trang chủ và tùy chỉnh nội dung banner.</p>
         </div>
       </div>
+
+      {saveError && (
+        <div style={{ marginBottom: '16px', padding: '12px 14px', borderRadius: '10px', background: 'rgba(239,68,68,0.12)', color: '#fecaca', border: '1px solid rgba(239,68,68,0.35)' }}>
+          {saveError}
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '20px' }}>
         <form onSubmit={handleSave} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-subtle)', borderRadius: '20px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -123,7 +141,7 @@ export default function AdminHeroPage() {
             <span>Hiển thị banner trên trang chủ</span>
           </label>
 
-          <button type="submit" disabled={saving} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px 18px', borderRadius: '12px', border: 'none', background: 'var(--accent-gradient)', color: '#FFF', fontWeight: 700, cursor: 'pointer' }}>
+          <button type="submit" disabled={saving} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px 18px', borderRadius: '12px', border: 'none', background: 'var(--accent-gradient)', color: '#FFF', fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}>
             <Save size={16} />
             <span>{saving ? 'Đang lưu...' : 'Lưu cấu hình'}</span>
           </button>

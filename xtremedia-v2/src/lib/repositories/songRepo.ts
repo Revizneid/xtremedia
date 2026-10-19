@@ -1,3 +1,6 @@
+import { promises as fs } from 'node:fs';
+import path from 'node:path';
+
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { sanitizeAudioUrl } from '@/lib/audioPlayback';
@@ -65,44 +68,142 @@ function toLegacySong(record: Prisma.SongGetPayload<{ include: typeof songInclud
   };
 }
 
+const DEFAULT_COVER = 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=500&q=80';
+
+function normalizeLegacySongRecord(record: any): Song {
+  const title = String(record?.title ?? 'Untitled Song').trim() || 'Untitled Song';
+  const artistName = String(record?.artistName ?? 'Unknown Artist').trim() || 'Unknown Artist';
+  const genreName = String(record?.genreName ?? 'Nhạc Trẻ V-Pop').trim() || 'Nhạc Trẻ V-Pop';
+  const createdAt = record?.createdAt ? new Date(record.createdAt) : new Date();
+
+  return {
+    id: String(record?.id ?? `song-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`),
+    title,
+    titleAscii: String(record?.titleAscii ?? title),
+    slug: String(record?.slug ?? slugify(title)),
+    artistId: String(record?.artistId ?? `artist-${slugify(artistName)}`),
+    artistName,
+    albumId: record?.albumId ?? null,
+    albumTitle: record?.albumTitle ?? null,
+    genreId: record?.genreId ?? `genre-${slugify(genreName)}`,
+    genreName,
+    audioUrl: sanitizeAudioUrl(String(record?.audioUrl ?? '')),
+    coverUrl: String(record?.coverUrl || record?.thumbnailUrl || DEFAULT_COVER),
+    durationSeconds: Number(record?.durationSeconds ?? record?.durationSec ?? 0),
+    bitrateKbps: Number(record?.bitrateKbps ?? 320),
+    lyricsLrc: typeof record?.lyricsLrc === 'string' ? record.lyricsLrc : undefined,
+    playCount: Number(record?.playCount ?? 0),
+    playCountMonth: Number(record?.playCountMonth ?? 0),
+    downloadCount: Number(record?.downloadCount ?? 0),
+    isBroken: Boolean(record?.isBroken ?? false),
+    status: normalizeStatus(String(record?.status ?? 'ACTIVE')),
+    createdAt: createdAt.toISOString(),
+  };
+}
+
+export async function readLegacyStoreSongs(filePath?: string): Promise<Song[]> {
+  const normalizedPath = filePath ? filePath.replace(/^\/([A-Za-z]:)/, '$1') : undefined;
+  const resolvedPath = normalizedPath
+    ? path.resolve(normalizedPath)
+    : path.resolve(process.cwd(), 'data', 'store.json');
+
+  try {
+    const raw = await fs.readFile(resolvedPath, 'utf8');
+    const parsed = JSON.parse(raw) as { songs?: unknown[] };
+    const songs = Array.isArray(parsed?.songs) ? parsed.songs : [];
+    return songs.map((song) => normalizeLegacySongRecord(song));
+  } catch {
+    return [];
+  }
+}
+
+function applyLegacyFilters(songs: Song[], options: SongQueryOptions): Song[] {
+  const filtered = [...songs];
+
+  if (options.genreId) {
+    return filtered.filter((song) => song.genreId === options.genreId);
+  }
+
+  if (options.artistId) {
+    return filtered.filter((song) => song.artistId === options.artistId);
+  }
+
+  if (options.search) {
+    const needle = options.search.toLowerCase();
+    return filtered.filter((song) => {
+      const title = song.title.toLowerCase();
+      const artist = song.artistName.toLowerCase();
+      return title.includes(needle) || artist.includes(needle);
+    });
+  }
+
+  if (options.sortBy === 'top_plays') {
+    return filtered.sort((a, b) => b.playCount - a.playCount);
+  }
+
+  if (options.sortBy === 'top_downloads') {
+    return filtered.sort((a, b) => b.downloadCount - a.downloadCount);
+  }
+
+  return filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+}
+
 export const songRepo = {
   async getSongs(options: SongQueryOptions = {}): Promise<Song[]> {
-    const where: Prisma.SongWhereInput = {
-      ...(options.genreId ? { genreId: options.genreId } : {}),
-      ...(options.artistId ? { artistId: options.artistId } : {}),
-      ...(options.search
-        ? {
-            OR: [
-              { title: { contains: options.search, mode: 'insensitive' } },
-              { artist: { is: { name: { contains: options.search, mode: 'insensitive' } } } },
-            ],
-          }
-        : {}),
-    };
+    try {
+      const where: Prisma.SongWhereInput = {
+        ...(options.genreId ? { genreId: options.genreId } : {}),
+        ...(options.artistId ? { artistId: options.artistId } : {}),
+        ...(options.search
+          ? {
+              OR: [
+                { title: { contains: options.search, mode: 'insensitive' } },
+                { artist: { is: { name: { contains: options.search, mode: 'insensitive' } } } },
+              ],
+            }
+          : {}),
+      };
 
-    const orderBy: Prisma.SongOrderByWithRelationInput[] =
-      options.sortBy === 'top_plays'
-        ? [{ playCount: 'desc' }]
-        : options.sortBy === 'top_downloads'
-          ? [{ downloadCount: 'desc' }]
-          : [{ createdAt: 'desc' }];
+      const orderBy: Prisma.SongOrderByWithRelationInput[] =
+        options.sortBy === 'top_plays'
+          ? [{ playCount: 'desc' }]
+          : options.sortBy === 'top_downloads'
+            ? [{ downloadCount: 'desc' }]
+            : [{ createdAt: 'desc' }];
 
-    const songs = await prisma.song.findMany({
-      where,
-      include: songInclude,
-      orderBy,
-    });
+      const songs = await prisma.song.findMany({
+        where,
+        include: songInclude,
+        orderBy,
+      });
 
-    return songs.map(toLegacySong);
+      if (songs.length > 0) {
+        return songs.map(toLegacySong);
+      }
+    } catch {
+      // fall back to the legacy store when the database is empty or unavailable
+    }
+
+    const fallbackSongs = await readLegacyStoreSongs();
+    return applyLegacyFilters(fallbackSongs, options);
   },
 
   async getSongById(id: string): Promise<Song | null> {
-    const record = await prisma.song.findUnique({
-      where: { id },
-      include: songInclude,
-    });
+    try {
+      const record = await prisma.song.findUnique({
+        where: { id },
+        include: songInclude,
+      });
 
-    return record ? toLegacySong(record) : null;
+      if (record) {
+        return toLegacySong(record);
+      }
+    } catch {
+      // fall through to legacy store lookup below
+    }
+
+    const fallbackSongs = await readLegacyStoreSongs();
+    return fallbackSongs.find((song) => song.id === id) ?? null;
   },
 
   async addSong(input: Partial<Song> & Pick<Song, 'title' | 'artistId' | 'audioUrl'>): Promise<Song> {
@@ -337,67 +438,98 @@ export const songRepo = {
       recent: Array<{ id: string; status: string; createdAt: string; payloadHash: string }>;
     };
   }> {
-    const [totalSongs, totalArtists, totalAlbums, totalGenres, totalUsers, brokenSongs, topSongs, recentBrokenSongs, syncTotal, syncSuccess, syncReused, syncFailed, recentSyncLogs] = await Promise.all([
-      prisma.song.count(),
-      prisma.artist.count(),
-      prisma.album.count(),
-      prisma.genre.count(),
-      prisma.user.count(),
-      prisma.song.count({ where: { isBroken: true } }),
-      prisma.song.findMany({
-        include: songInclude,
-        orderBy: { playCount: 'desc' },
-        take: 5,
-      }),
-      prisma.song.findMany({
-        where: { isBroken: true },
-        include: songInclude,
-        orderBy: { createdAt: 'desc' },
-        take: 5,
-      }),
-      prisma.syncLog.count(),
-      prisma.syncLog.count({ where: { status: 'SUCCESS' } }),
-      prisma.syncLog.count({ where: { status: 'REUSED' } }),
-      prisma.syncLog.count({ where: { status: 'FAILED' } }),
-      prisma.syncLog.findMany({
-        orderBy: { createdAt: 'desc' },
-        take: 5,
-      }),
-    ]);
+    try {
+      const [totalSongs, totalArtists, totalAlbums, totalGenres, totalUsers, brokenSongs, topSongs, recentBrokenSongs, syncTotal, syncSuccess, syncReused, syncFailed, recentSyncLogs] = await Promise.all([
+        prisma.song.count(),
+        prisma.artist.count(),
+        prisma.album.count(),
+        prisma.genre.count(),
+        prisma.user.count(),
+        prisma.song.count({ where: { isBroken: true } }),
+        prisma.song.findMany({
+          include: songInclude,
+          orderBy: { playCount: 'desc' },
+          take: 5,
+        }),
+        prisma.song.findMany({
+          where: { isBroken: true },
+          include: songInclude,
+          orderBy: { createdAt: 'desc' },
+          take: 5,
+        }),
+        prisma.syncLog.count(),
+        prisma.syncLog.count({ where: { status: 'SUCCESS' } }),
+        prisma.syncLog.count({ where: { status: 'REUSED' } }),
+        prisma.syncLog.count({ where: { status: 'FAILED' } }),
+        prisma.syncLog.findMany({
+          orderBy: { createdAt: 'desc' },
+          take: 5,
+        }),
+      ]);
 
-    const totalPlays = (await prisma.song.aggregate({ _sum: { playCount: true } }))._sum.playCount ?? 0;
-    const totalDownloads = (await prisma.song.aggregate({ _sum: { downloadCount: true } }))._sum.downloadCount ?? 0;
-    const latestSyncLog = recentSyncLogs[0] ?? null;
-    const hasSynced = syncTotal > 0 && !!latestSyncLog;
-    const lastSyncStatus = (latestSyncLog?.status as 'SUCCESS' | 'REUSED' | 'FAILED' | undefined) ?? 'NEVER';
+      const totalPlays = (await prisma.song.aggregate({ _sum: { playCount: true } }))._sum.playCount ?? 0;
+      const totalDownloads = (await prisma.song.aggregate({ _sum: { downloadCount: true } }))._sum.downloadCount ?? 0;
+      const latestSyncLog = recentSyncLogs[0] ?? null;
+      const hasSynced = syncTotal > 0 && !!latestSyncLog;
+      const lastSyncStatus = (latestSyncLog?.status as 'SUCCESS' | 'REUSED' | 'FAILED' | undefined) ?? 'NEVER';
 
-    return {
-      totalSongs,
-      totalArtists,
-      totalAlbums,
-      totalGenres,
-      totalUsers,
-      brokenSongsCount: brokenSongs,
-      totalPlays: Number(totalPlays),
-      totalDownloads: Number(totalDownloads),
-      topSongs: topSongs.map(toLegacySong),
-      recentBrokenSongs: recentBrokenSongs.map(toLegacySong),
-      syncSummary: {
-        total: syncTotal,
-        success: syncSuccess,
-        reused: syncReused,
-        failed: syncFailed,
-        hasSynced,
-        lastSyncStatus: hasSynced ? lastSyncStatus : 'NEVER',
-        lastSyncAt: latestSyncLog ? latestSyncLog.createdAt.toISOString() : null,
-        recent: recentSyncLogs.map((log) => ({
-          id: log.id,
-          status: log.status,
-          createdAt: log.createdAt.toISOString(),
-          payloadHash: log.payloadHash,
-        })),
-      },
-    };
+      return {
+        totalSongs,
+        totalArtists,
+        totalAlbums,
+        totalGenres,
+        totalUsers,
+        brokenSongsCount: brokenSongs,
+        totalPlays: Number(totalPlays),
+        totalDownloads: Number(totalDownloads),
+        topSongs: topSongs.map(toLegacySong),
+        recentBrokenSongs: recentBrokenSongs.map(toLegacySong),
+        syncSummary: {
+          total: syncTotal,
+          success: syncSuccess,
+          reused: syncReused,
+          failed: syncFailed,
+          hasSynced,
+          lastSyncStatus: hasSynced ? lastSyncStatus : 'NEVER',
+          lastSyncAt: latestSyncLog ? latestSyncLog.createdAt.toISOString() : null,
+          recent: recentSyncLogs.map((log) => ({
+            id: log.id,
+            status: log.status,
+            createdAt: log.createdAt.toISOString(),
+            payloadHash: log.payloadHash,
+          })),
+        },
+      };
+    } catch {
+      const fallbackSongs = await readLegacyStoreSongs();
+      const totalPlays = fallbackSongs.reduce((sum, song) => sum + song.playCount, 0);
+      const totalDownloads = fallbackSongs.reduce((sum, song) => sum + song.downloadCount, 0);
+      const legacyTopSongs = [...fallbackSongs].sort((a, b) => b.playCount - a.playCount).slice(0, 5);
+      const brokenSongs = fallbackSongs.filter((song) => song.isBroken);
+
+      return {
+        totalSongs: fallbackSongs.length,
+        totalArtists: Array.from(new Set(fallbackSongs.map((song) => song.artistName))).length,
+        totalAlbums: Array.from(new Set(fallbackSongs.map((song) => song.albumTitle).filter(Boolean))).length,
+        totalGenres: Array.from(new Set(fallbackSongs.map((song) => song.genreName).filter(Boolean))).length,
+        totalUsers: 0,
+        brokenSongsCount: brokenSongs.length,
+        totalPlays,
+        totalDownloads,
+        topSongs: legacyTopSongs,
+        recentBrokenSongs: brokenSongs.slice(0, 5),
+        syncSummary: {
+          total: 0,
+          success: 0,
+          reused: 0,
+          failed: 0,
+          hasSynced: fallbackSongs.length > 0,
+          lastSyncStatus: fallbackSongs.length > 0 ? 'SUCCESS' : 'NEVER',
+          lastSyncAt: fallbackSongs[0]?.createdAt ?? null,
+          recent: [],
+        },
+      };
+    }
   },
 
   async bulkImport(imported: {

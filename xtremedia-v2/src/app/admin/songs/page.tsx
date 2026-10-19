@@ -16,6 +16,7 @@ import {
   Radio,
   ExternalLink,
 } from 'lucide-react';
+import { apiFetchJson } from '@/lib/apiFetchJson';
 import { Song, Artist, Genre } from '@/lib/types';
 import { useAudioPlayer } from '@/context/AudioPlayerContext';
 
@@ -47,11 +48,10 @@ export default function AdminSongsPage() {
     setFetchError(null);
 
     try {
-      const res = await fetch(`/api/admin/songs${search ? `?q=${encodeURIComponent(search)}` : ''}`, { cache: 'no-store' });
-      const data = await res.json().catch(() => ({}));
+      const data = await apiFetchJson<{ success?: boolean; error?: string; songs?: Song[] }>(`/api/admin/songs${search ? `?q=${encodeURIComponent(search)}` : ''}`, { cache: 'no-store' });
 
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Không thể tải danh sách bài hát');
+      if (!data?.success) {
+        throw new Error(data?.error || 'Không thể tải danh sách bài hát');
       }
 
       setSongs(Array.isArray(data.songs) ? data.songs : []);
@@ -112,7 +112,7 @@ export default function AdminSongsPage() {
     setSaving(true);
     try {
       if (editingSong) {
-        const res = await fetch(`/api/admin/songs/${editingSong.id}`, {
+        const data = await apiFetchJson<{ success?: boolean; error?: string }>(`/api/admin/songs/${editingSong.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           cache: 'no-store',
@@ -128,16 +128,14 @@ export default function AdminSongsPage() {
             lyricsLrc: lyricsLrc.trim(),
           }),
         });
-
-        const data = await res.json().catch(() => ({}));
-        if (res.ok && data.success) {
+        if (data?.success) {
           setIsModalOpen(false);
           fetchSongs();
         } else {
-          setFormError(data.error || 'Cập nhật thất bại');
+          setFormError(data?.error || 'Cập nhật thất bại');
         }
       } else {
-        const res = await fetch('/api/admin/songs', {
+        const data = await apiFetchJson<{ success?: boolean; error?: string }>('/api/admin/songs', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           cache: 'no-store',
@@ -153,13 +151,11 @@ export default function AdminSongsPage() {
             lyricsLrc: lyricsLrc.trim(),
           }),
         });
-
-        const data = await res.json().catch(() => ({}));
-        if (res.ok && data.success) {
+        if (data?.success) {
           setIsModalOpen(false);
           fetchSongs();
         } else {
-          setFormError(data.error || 'Thêm bài hát thất bại');
+          setFormError(data?.error || 'Thêm bài hát thất bại');
         }
       }
     } catch (err) {
@@ -176,13 +172,12 @@ export default function AdminSongsPage() {
     }
 
     try {
-      const res = await fetch(`/api/admin/songs/${songId}`, { method: 'DELETE', cache: 'no-store' });
-      const data = await res.json().catch(() => ({}));
+      const data = await apiFetchJson<{ success?: boolean; error?: string }>(`/api/admin/songs/${songId}`, { method: 'DELETE', cache: 'no-store' });
 
-      if (res.ok && data.success) {
+      if (data?.success) {
         fetchSongs();
       } else {
-        alert(data.error || 'Không thể xóa bài hát này');
+        alert(data?.error || 'Không thể xóa bài hát này');
       }
     } catch (err) {
       console.error('Delete song error:', err);

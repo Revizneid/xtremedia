@@ -1,0 +1,30 @@
+{
+  "songs": [
+    {
+      "title": "Legacy Song One",
+      "artistName": "Legacy Artist",
+      "genreName": "Pop",
+      "audioUrl": "https://example.com/legacy-one.mp3",
+      "durationSeconds": 180,
+      "coverUrl": "https://example.com/cover-one.jpg",
+      "playCount": 0,
+      "downloadCount": 0,
+      "isBroken": false,
+      "status": "ACTIVE",
+      "createdAt": "2026-10-19T00:00:00.000Z"
+    },
+    {
+      "title": "Legacy Song Two",
+      "artistName": "Legacy Artist",
+      "genreName": "Pop",
+      "audioUrl": "https://example.com/legacy-two.mp3",
+      "durationSeconds": 220,
+      "coverUrl": "https://example.com/cover-two.jpg",
+      "playCount": 5,
+      "downloadCount": 2,
+      "isBroken": false,
+      "status": "ACTIVE",
+      "createdAt": "2026-10-19T01:00:00.000Z"
+    }
+  ]
+}

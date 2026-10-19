@@ -107,9 +107,10 @@ model Song {
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 
-  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
-  genre  Genre? @relation(fields: [genreId], references: [id], onDelete: SetNull)
-  album  Album? @relation(fields: [albumId], references: [id], onDelete: SetNull)
+  artist      Artist        @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  genre       Genre?        @relation(fields: [genreId], references: [id], onDelete: SetNull)
+  album       Album?        @relation(fields: [albumId], references: [id], onDelete: SetNull)
+  heroBanners HeroBanner[]  @relation("HeroBannerSong")
 
   playlistSongs PlaylistSong[]
   comments      Comment[]
@@ -118,6 +119,24 @@ model Song {
   @@index([title, artistId])
   @@index([createdAt])
   @@map("songs")
+}
+
+model HeroBanner {
+  id        String   @id @default(cuid())
+  title     String
+  subtitle  String?
+  imageUrl  String?
+  linkUrl   String?
+  songId    String?
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  song Song? @relation("HeroBannerSong", fields: [songId], references: [id], onDelete: SetNull)
+
+  @@index([isActive, sortOrder])
+  @@map("hero_banners")
 }
 
 model Playlist {

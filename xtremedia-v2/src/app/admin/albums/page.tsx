@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Disc3, Plus, Trash2, X, Pencil, Music4, ListMusic } from 'lucide-react';
+import { apiFetchJson } from '@/lib/apiFetchJson';
 import { Artist, Album, Song } from '@/lib/types';
 
 type AdminAlbum = Album & {
@@ -31,28 +32,22 @@ export default function AdminAlbumsPage() {
   const fetchAlbums = async () => {
     setLoading(true);
     try {
-      const [albumsRes, artistsRes] = await Promise.all([
-        fetch('/api/admin/albums', { cache: 'no-store' }),
-        fetch('/api/admin/artists', { cache: 'no-store' }),
+      const [albumsData, artistsData] = await Promise.all([
+        apiFetchJson<{ albums?: any[] }>('/api/admin/albums', { cache: 'no-store' }),
+        apiFetchJson<{ artists?: Artist[] }>('/api/admin/artists', { cache: 'no-store' }),
       ]);
 
-      if (albumsRes.ok) {
-        const albumsData = await albumsRes.json();
-        setAlbums(
-          (albumsData.albums || []).map((album: any) => ({
-            ...album,
-            songCount: album.songCount ?? album.songs?.length ?? 0,
-            songs: album.songs || [],
-          }))
-        );
-      }
+      setAlbums(
+        (albumsData?.albums || []).map((album: any) => ({
+          ...album,
+          songCount: album.songCount ?? album.songs?.length ?? 0,
+          songs: album.songs || [],
+        }))
+      );
 
-      if (artistsRes.ok) {
-        const artistsData = await artistsRes.json();
-        setArtists(artistsData.artists || []);
-        if (!artistId && artistsData.artists?.[0]?.id) {
-          setArtistId(artistsData.artists[0].id);
-        }
+      setArtists(artistsData?.artists || []);
+      if (!artistId && artistsData?.artists?.[0]?.id) {
+        setArtistId(artistsData.artists[0].id);
       }
     } catch (err) {
       console.error('Fetch albums error:', err);
@@ -93,33 +88,30 @@ export default function AdminAlbumsPage() {
       description: description.trim() || undefined,
     };
 
-    const res = await fetch(editingAlbum ? `/api/admin/albums/${editingAlbum.id}` : '/api/admin/albums', {
+    const data = await apiFetchJson<{ success?: boolean; error?: string }>(editingAlbum ? `/api/admin/albums/${editingAlbum.id}` : '/api/admin/albums', {
       method: editingAlbum ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json' },
       cache: 'no-store',
       body: JSON.stringify(payload),
     });
-
-    const data = await res.json().catch(() => ({}));
-    if (res.ok && data.success) {
+    if (data?.success) {
       resetAlbumForm();
       setIsModalOpen(false);
       fetchAlbums();
     } else {
-      alert(data.error || 'Không thể lưu album.');
+      alert(data?.error || 'Không thể lưu album.');
     }
   };
 
   const handleDeleteAlbum = async (id: string) => {
     if (!window.confirm('Xóa album này?')) return;
 
-    const res = await fetch(`/api/admin/albums?id=${id}`, { method: 'DELETE', cache: 'no-store' });
-    const data = await res.json().catch(() => ({}));
+    const data = await apiFetchJson<{ success?: boolean; error?: string }>(`/api/admin/albums?id=${id}`, { method: 'DELETE', cache: 'no-store' });
 
-    if (res.ok && data.success) {
+    if (data?.success) {
       fetchAlbums();
     } else {
-      alert(data.error || 'Không thể xóa album.');
+      alert(data?.error || 'Không thể xóa album.');
     }
   };
 

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Users, Shield, ShieldCheck, UserCheck, RefreshCw, Sparkles } from 'lucide-react';
+import { apiFetchJson } from '@/lib/apiFetchJson';
 import { SafeUser, Role } from '@/lib/types';
 
 export default function AdminUsersPage() {
@@ -12,11 +13,8 @@ export default function AdminUsersPage() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/users', { cache: 'no-store' });
-      if (res.ok) {
-        const data = await res.json();
-        setUsers(data.users || []);
-      }
+      const data = await apiFetchJson<{ users?: SafeUser[] }>('/api/admin/users', { cache: 'no-store' });
+      setUsers(data?.users || []);
     } catch (err) {
       console.error('Fetch users error:', err);
     } finally {
@@ -31,13 +29,13 @@ export default function AdminUsersPage() {
   const handleRoleChange = async (userId: string, newRole: Role) => {
     setUpdatingId(userId);
     try {
-      const res = await fetch('/api/admin/users', {
+      const data = await apiFetchJson<{ success?: boolean; error?: string }>('/api/admin/users', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         cache: 'no-store',
         body: JSON.stringify({ userId, role: newRole }),
       });
-      if (res.ok) {
+      if (data?.success) {
         setUsers((prev) =>
           prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u))
         );

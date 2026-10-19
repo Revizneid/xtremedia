@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Mic2, Plus, Trash2, Globe, Tag, Sparkles, X, Pencil } from 'lucide-react';
+import { apiFetchJson } from '@/lib/apiFetchJson';
 import { Artist, Genre } from '@/lib/types';
 
 export default function AdminArtistsPage() {
@@ -27,18 +28,12 @@ export default function AdminArtistsPage() {
   const fetchArtistsAndGenres = async () => {
     setLoading(true);
     try {
-      const [resAr, resGe] = await Promise.all([
-        fetch('/api/admin/artists', { cache: 'no-store' }),
-        fetch('/api/genres', { cache: 'no-store' }),
+      const [dataAr, dataGe] = await Promise.all([
+        apiFetchJson<{ artists?: Artist[] }>('/api/admin/artists', { cache: 'no-store' }),
+        apiFetchJson<{ genres?: Genre[] }>('/api/genres', { cache: 'no-store' }),
       ]);
-      if (resAr.ok) {
-        const dataAr = await resAr.json();
-        setArtists(dataAr.artists || []);
-      }
-      if (resGe.ok) {
-        const dataGe = await resGe.json();
-        setGenres(dataGe.genres || []);
-      }
+      setArtists(dataAr?.artists || []);
+      setGenres(dataGe?.genres || []);
     } catch (err) {
       console.error('Fetch artists error:', err);
     } finally {
@@ -76,20 +71,18 @@ export default function AdminArtistsPage() {
         country: artistCountry,
       };
 
-      const res = await fetch(editingArtist ? `/api/admin/artists/${editingArtist.id}` : '/api/admin/artists', {
+      const data = await apiFetchJson<{ success?: boolean; error?: string }>(editingArtist ? `/api/admin/artists/${editingArtist.id}` : '/api/admin/artists', {
         method: editingArtist ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         cache: 'no-store',
         body: JSON.stringify(payload),
       });
-
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data.success) {
+      if (data?.success) {
         setIsArtistModalOpen(false);
         resetArtistForm();
         fetchArtistsAndGenres();
       } else {
-        alert(data.error || 'Không thể lưu nghệ sĩ.');
+        alert(data?.error || 'Không thể lưu nghệ sĩ.');
       }
     } catch (err) {
       console.error('Save artist error:', err);
@@ -100,13 +93,12 @@ export default function AdminArtistsPage() {
   const handleDeleteArtist = async (id: string, name: string) => {
     if (!window.confirm(`Xóa nghệ sĩ "${name}"?`)) return;
     try {
-      const res = await fetch(`/api/admin/artists?id=${id}`, { method: 'DELETE', cache: 'no-store' });
-      const data = await res.json().catch(() => ({}));
+      const data = await apiFetchJson<{ success?: boolean; error?: string }>(`/api/admin/artists?id=${id}`, { method: 'DELETE', cache: 'no-store' });
 
-      if (res.ok && data.success) {
+      if (data?.success) {
         fetchArtistsAndGenres();
       } else {
-        alert(data.error || 'Không thể xóa nghệ sĩ.');
+        alert(data?.error || 'Không thể xóa nghệ sĩ.');
       }
     } catch (err) {
       console.error('Delete artist error:', err);
