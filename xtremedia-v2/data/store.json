@@ -1,6 +1,28 @@
 {
   "songs": [
     {
+      "id": "song-1792227293279",
+      "title": "CHIẾM TRỌN TÌNH CẢM KHÁN GIẢ",
+      "titleAscii": "CHIẾM TRỌN TÌNH CẢM KHÁN GIẢ",
+      "slug": "chi-m-tr-n-t-nh-c-m-kh-n-gi-",
+      "artistId": "artist-v---live-12-hit-m-i-nh-t",
+      "artistName": "Vũ. Live 12 Hit Mới Nhất",
+      "albumTitle": null,
+      "genreId": "pop",
+      "genreName": "Nhạc Trẻ V-Pop",
+      "audioUrl": "https://github.com/Revizneid/xtremedia/releases/download/v2.0-music/songs.Z1msbXVwCps-0b05be8880.mp3",
+      "coverUrl": "https://i.ytimg.com/vi_webp/Z1msbXVwCps/maxresdefault.webp",
+      "durationSeconds": 180,
+      "bitrateKbps": 320,
+      "lyricsLrc": "",
+      "playCount": 0,
+      "playCountMonth": 0,
+      "downloadCount": 0,
+      "isBroken": false,
+      "status": "ACTIVE",
+      "createdAt": "2026-10-17T08:54:53.279Z"
+    },
+    {
       "id": "song-1792225029847",
       "title": "CHIẾM TRỌN TÌNH CẢM KHÁN GIẢ",
       "titleAscii": "CHIẾM TRỌN TÌNH CẢM KHÁN GIẢ",

@@ -217,8 +217,8 @@ export const syncLogRepo = {
     };
   }): Promise<{ duplicate: boolean; song: Song | null; status: 'SUCCESS' | 'REUSED' }> {
     const cleanTitle = input.payload.title.trim();
-    const cleanArtist = (input.payload.artistName || 'Nghệ Sĩ XtreMedia').trim();
-    const cleanGenre = (input.payload.genreName || 'Nhạc Trẻ V-Pop').trim();
+    const cleanArtist = (input.payload.artistName || 'Chưa rõ').trim();
+    const cleanGenre = (input.payload.genreName || 'Chưa phân loại').trim();
     const normalizedAudioUrl = input.payload.audioUrl.trim();
     const videoId = input.payload.videoId?.trim() || null;
     const trimStart = Number(input.payload.trimStart ?? 0) || 0;

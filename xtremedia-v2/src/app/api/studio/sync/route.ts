@@ -88,20 +88,40 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ ok: true });
 }
 
+const STUDIO_SYNC_MAX_DURATION_SECONDS = 14400;
+
+const optionalTextSchema = (maxLength: number) =>
+  z
+    .union([z.string(), z.number(), z.boolean(), z.null(), z.undefined()])
+    .optional()
+    .transform((value) => {
+      if (value === null || value === undefined) return undefined;
+      const text = String(value).trim();
+      if (!text || text.toLowerCase() === 'undefined' || text.toLowerCase() === 'null') {
+        return undefined;
+      }
+      return text.slice(0, maxLength);
+    })
+    .pipe(z.string().max(maxLength).optional());
+
 const studioSyncSchema = z.object({
   title: z.string().trim().min(1).max(180),
-  artistName: z.string().trim().max(120).optional().default('Nghệ Sĩ XtreMedia'),
-  genreName: z.string().trim().max(80).optional(),
-  albumTitle: z.string().trim().max(160).optional(),
+  artistName: optionalTextSchema(120),
+  genreName: optionalTextSchema(80),
+  albumTitle: optionalTextSchema(160),
   audioUrl: z.string().trim().min(1).max(2048),
-  coverUrl: z.string().trim().max(2048).optional(),
-  durationSeconds: z.number().int().min(1).max(3600).optional(),
-  bitrateKbps: z.number().int().min(32).max(512).optional(),
-  lyricsLrc: z.string().trim().max(20000).optional(),
-  id: z.string().trim().max(120).optional(),
-  videoId: z.string().trim().max(200).optional(),
-  trimStart: z.number().int().min(0).max(3600).optional(),
-  trimEnd: z.number().int().min(0).max(3600).optional(),
+  coverUrl: optionalTextSchema(2048),
+  durationSeconds: z
+    .number({ message: 'durationSeconds: expected number' })
+    .finite()
+    .transform((value) => Math.round(value))
+    .pipe(z.number().int().min(1).max(STUDIO_SYNC_MAX_DURATION_SECONDS)),
+  bitrateKbps: z.number().int().min(32).max(512).nullish().transform((value) => value ?? undefined),
+  lyricsLrc: optionalTextSchema(20000),
+  id: optionalTextSchema(120),
+  videoId: z.string().trim().min(1).max(200),
+  trimStart: z.number().int().min(0).max(STUDIO_SYNC_MAX_DURATION_SECONDS).nullish().transform((value) => value ?? 0),
+  trimEnd: z.number().int().min(0).max(STUDIO_SYNC_MAX_DURATION_SECONDS).nullish().transform((value) => value ?? 0),
 });
 
 export async function POST(request: NextRequest) {
@@ -143,32 +163,38 @@ export async function POST(request: NextRequest) {
     }
 
     const cleanTitle = String(title).trim();
-    const cleanArtist = (artistName || 'Nghệ Sĩ XtreMedia').trim();
+    const cleanArtist = artistName ? String(artistName).trim() : undefined;
+    const cleanGenre = genreName ? String(genreName).trim() : undefined;
+    const cleanAlbumTitle = albumTitle ? String(albumTitle).trim() : undefined;
+    const cleanCoverUrl = coverUrl ? String(coverUrl).trim() : undefined;
     const normalizedAudioUrl = String(audioUrl).trim();
     const titleAscii = removeVietnameseTones(cleanTitle);
     const slug = generateSlug(cleanTitle);
+    const normalizedDurationSeconds = Math.round(durationSeconds);
+    const normalizedTrimStart = Number(trimStart ?? 0);
+    const normalizedTrimEnd = Number(trimEnd ?? 0);
     step = 'build-idempotency';
     const idempotencyKey = (request.headers.get('Idempotency-Key') || '').trim() || buildStudioSyncIdempotencyKey({
       audioUrl: normalizedAudioUrl,
       id,
       videoId,
-      trimStart,
-      trimEnd,
+      trimStart: normalizedTrimStart,
+      trimEnd: normalizedTrimEnd,
     });
     const payloadHash = crypto.createHash('sha256').update(JSON.stringify({
       title: cleanTitle,
       artistName: cleanArtist,
-      genreName: genreName || 'Nhạc Trẻ V-Pop',
-      albumTitle: albumTitle ? String(albumTitle).trim() : null,
+      genreName: cleanGenre,
+      albumTitle: cleanAlbumTitle,
       audioUrl: normalizedAudioUrl,
-      coverUrl: coverUrl ? String(coverUrl).trim() : null,
-      durationSeconds: Number(durationSeconds) || 210,
-      bitrateKbps: Number(bitrateKbps) || 320,
-      lyricsLrc: lyricsLrc ? String(lyricsLrc).trim() : null,
-      id: id || null,
-      videoId: videoId || null,
-      trimStart: Number(trimStart ?? 0),
-      trimEnd: Number(trimEnd ?? 0),
+      coverUrl: cleanCoverUrl,
+      durationSeconds: normalizedDurationSeconds,
+      bitrateKbps: bitrateKbps ?? undefined,
+      lyricsLrc: lyricsLrc ? String(lyricsLrc).trim() : undefined,
+      id: id || undefined,
+      videoId,
+      trimStart: normalizedTrimStart,
+      trimEnd: normalizedTrimEnd,
     })).digest('hex');
 
     step = 'sync-db';
@@ -178,17 +204,17 @@ export async function POST(request: NextRequest) {
       payload: {
         title: cleanTitle,
         artistName: cleanArtist,
-        genreName: genreName || 'Nhạc Trẻ V-Pop',
-        albumTitle: albumTitle ? String(albumTitle).trim() : undefined,
+        genreName: cleanGenre,
+        albumTitle: cleanAlbumTitle,
         audioUrl: normalizedAudioUrl,
-        coverUrl: coverUrl ? String(coverUrl).trim() : undefined,
-        durationSeconds: Number(durationSeconds) || 210,
-        bitrateKbps: Number(bitrateKbps) || 320,
+        coverUrl: cleanCoverUrl,
+        durationSeconds: normalizedDurationSeconds,
+        bitrateKbps: bitrateKbps ?? undefined,
         lyricsLrc: lyricsLrc ? String(lyricsLrc).trim() : undefined,
         id,
         videoId,
-        trimStart: Number(trimStart ?? 0),
-        trimEnd: Number(trimEnd ?? 0),
+        trimStart: normalizedTrimStart,
+        trimEnd: normalizedTrimEnd,
       },
     });
 
@@ -207,17 +233,15 @@ export async function POST(request: NextRequest) {
       titleAscii,
       slug,
       artistId: syncResult.song?.artistId || 'artist-' + Date.now(),
-      artistName: cleanArtist,
+      artistName: cleanArtist || 'Chưa rõ',
       albumId: null,
-      albumTitle: albumTitle ? String(albumTitle).trim() : null,
+      albumTitle: cleanAlbumTitle || null,
       genreId: null,
-      genreName: genreName || 'Nhạc Trẻ V-Pop',
+      genreName: cleanGenre || 'Chưa phân loại',
       audioUrl: normalizedAudioUrl,
-      coverUrl: coverUrl && String(coverUrl).trim()
-        ? String(coverUrl).trim()
-        : 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=500&q=80',
-      durationSeconds: Number(durationSeconds) || 210,
-      bitrateKbps: Number(bitrateKbps) || 320,
+      coverUrl: cleanCoverUrl || 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=500&q=80',
+      durationSeconds: normalizedDurationSeconds,
+      bitrateKbps: bitrateKbps ?? 320,
       lyricsLrc: lyricsLrc ? String(lyricsLrc).trim() : undefined,
       playCount: 0,
       playCountMonth: 0,
