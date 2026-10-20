@@ -62,8 +62,8 @@ export default function PlayerBar() {
       style={{
         position: 'fixed',
         bottom: 0,
-        left: 0,
-        right: 0,
+        left: 'var(--sidebar-width)',
+        width: 'calc(100% - var(--sidebar-width))',
         height: 'var(--player-height)',
         zIndex: 50,
         background: 'rgba(10, 14, 23, 0.95)',
