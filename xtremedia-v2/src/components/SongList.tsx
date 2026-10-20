@@ -64,6 +64,15 @@ export default function SongList({ songs, title = 'Danh Sách Bài Hát', subtit
     window.open(song.audioUrl, '_blank');
   };
 
+  const handleSongSelection = (song: Song) => {
+    if (currentSong?.id === song.id) {
+      togglePlayPause();
+      return;
+    }
+
+    playSong(song, songs);
+  };
+
   return (
     <div style={{ marginBottom: '40px' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '18px' }}>
@@ -135,6 +144,15 @@ export default function SongList({ songs, title = 'Danh Sách Bài Hát', subtit
                   transition: 'background 0.2s ease',
                   cursor: 'pointer',
                 }}
+                role="button"
+                tabIndex={0}
+                onClick={() => handleSongSelection(song)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleSongSelection(song);
+                  }
+                }}
                 onMouseEnter={(e) => {
                   if (!isCurrent) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
                 }}
@@ -169,9 +187,9 @@ export default function SongList({ songs, title = 'Danh Sách Bài Hát', subtit
                       overflow: 'hidden',
                       flexShrink: 0,
                     }}
-                    onClick={() => {
-                      if (isCurrent) togglePlayPause();
-                      else playSong(song, songs);
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSongSelection(song);
                     }}
                   >
                     <img
@@ -212,6 +230,10 @@ export default function SongList({ songs, title = 'Danh Sách Bài Hát', subtit
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                       }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSongSelection(song);
+                      }}
                     >
                       {song.title}
                     </p>
@@ -223,6 +245,10 @@ export default function SongList({ songs, title = 'Danh Sách Bài Hát', subtit
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         marginTop: '2px',
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSongSelection(song);
                       }}
                     >
                       {song.artistName}
