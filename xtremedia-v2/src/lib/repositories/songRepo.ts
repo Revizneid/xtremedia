@@ -150,7 +150,11 @@ function applyLegacyFilters(songs: Song[], options: SongQueryOptions): Song[] {
 
 export const songRepo = {
   async getSongs(options: SongQueryOptions = {}): Promise<Song[]> {
-    const isProduction = String(process.env.NODE_ENV ?? '') === 'production';
+    const nodeEnv = String(process.env.NODE_ENV ?? '');
+    const isProduction = nodeEnv === 'production';
+    // Fallback JSON chỉ được phép khi: NODE_ENV=development VÀ cờ LEGACY_JSON_FALLBACK=true.
+    // Khi test hoặc production: DB lỗi phải lộ ra, không che bằng fallback.
+    const isAllowedFallback = nodeEnv === 'development' && process.env.LEGACY_JSON_FALLBACK === 'true';
 
     try {
       const where: Prisma.SongWhereInput = {
@@ -184,16 +188,16 @@ export const songRepo = {
         .filter((song) => song.status !== 'INACTIVE' && !song.isBroken)
         .map(toLegacySong);
 
-      if (songs.length > 0 || isProduction) {
+      if (songs.length > 0 || !isAllowedFallback) {
         return publicSongs;
       }
     } catch {
-      if (isProduction) {
+      if (!isAllowedFallback) {
         return [];
       }
     }
 
-    if (isProduction) {
+    if (!isAllowedFallback) {
       return [];
     }
 
@@ -202,7 +206,8 @@ export const songRepo = {
   },
 
   async getSongById(id: string): Promise<Song | null> {
-    const isProduction = String(process.env.NODE_ENV ?? '') === 'production';
+    const nodeEnv = String(process.env.NODE_ENV ?? '');
+    const isAllowedFallback = nodeEnv === 'development' && process.env.LEGACY_JSON_FALLBACK === 'true';
 
     try {
       const record = await prisma.song.findUnique({
@@ -214,12 +219,12 @@ export const songRepo = {
         return record.status === 'INACTIVE' || record.isBroken ? null : toLegacySong(record);
       }
     } catch {
-      if (isProduction) {
+      if (!isAllowedFallback) {
         return null;
       }
     }
 
-    if (isProduction) {
+    if (!isAllowedFallback) {
       return null;
     }
 
@@ -547,7 +552,9 @@ export const songRepo = {
         },
       };
     } catch {
-      if (process.env.NODE_ENV === 'production') {
+      const nodeEnv = String(process.env.NODE_ENV ?? '');
+      const isAllowedFallback = nodeEnv === 'development' && process.env.LEGACY_JSON_FALLBACK === 'true';
+      if (!isAllowedFallback) {
         return {
           totalSongs: 0,
           totalArtists: 0,

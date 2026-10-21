@@ -1,10 +1,45 @@
-process.env.DATABASE_URL ??= 'postgresql://postgres:postgres@localhost:5432/postgres';
-process.env.DIRECT_URL ??= 'postgresql://postgres:postgres@localhost:5432/postgres';
+/**
+ * syncLogRepo.test.ts – Test TÍCH HỢP (cần DB thật).
+ *
+ * Các test này dùng mock Prisma methods (monkey-patch) nên KHÔNG cần kết nối DB thật.
+ * Tuy nhiên Prisma client vẫn khởi tạo và đọc DATABASE_URL khi import.
+ *
+ * Quy tắc:
+ *  - Đặt DATABASE_URL thành giá trị local an toàn trước khi import Prisma.
+ *  - Không đọc hay in DATABASE_URL production.
+ *  - Nếu TEST_DATABASE_URL có và an toàn → dùng nó; nếu không → dùng local dummy.
+ *  - Test "title and artist alone are not considered duplicate when the audioUrl differs"
+ *    đã được chuyển sang syncLogDecision.test.ts (pure, không cần DB).
+ */
+
+// Phải set DATABASE_URL TRƯỚC khi import @prisma/client.
+// Dùng TEST_DATABASE_URL nếu có và an toàn; không thì dùng dummy localhost.
+(function bootstrapDatabaseUrl() {
+  const testUrl = process.env['TEST_DATABASE_URL'];
+  const safePatterns = [/\blocalhost\b/, /\b127\.0\.0\.1\b/, /test/i];
+  const isSafe = (url: string) => {
+    try {
+      const parsed = new URL(url);
+      return safePatterns.some((re) => re.test(parsed.hostname) || re.test(parsed.pathname));
+    } catch {
+      return false;
+    }
+  };
+
+  if (testUrl && isSafe(testUrl)) {
+    process.env['DATABASE_URL'] = testUrl;
+    process.env['DIRECT_URL'] = testUrl;
+  } else {
+    // Dummy không thể kết nối – OK vì tests dùng monkey-patch, không dùng kết nối thật
+    process.env['DATABASE_URL'] ??= 'postgresql://postgres:postgres@localhost:5432/xtremedia_test';
+    process.env['DIRECT_URL'] ??= 'postgresql://postgres:postgres@localhost:5432/xtremedia_test';
+  }
+})();
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { prisma } from '@/lib/prisma';
-import { syncLogRepo } from './syncLogRepo';
+import { syncLogRepo } from './syncLogRepo.js';
 
 const sampleSongRecord = {
   id: 'song-123',
@@ -26,6 +61,7 @@ const sampleSongRecord = {
   createdAt: new Date('2026-10-17T00:00:00Z'),
 };
 
+// ─── Test 1: idempotency key đã tồn tại → REUSED ────────────────────────────
 test('reuses same idempotency key without creating a duplicate record', async () => {
   const originalFindUnique = prisma.syncLog.findUnique.bind(prisma.syncLog);
   const originalSongFindFirst = prisma.song.findFirst.bind(prisma.song);
@@ -76,63 +112,15 @@ test('reuses same idempotency key without creating a duplicate record', async ()
   }
 });
 
-test('title and artist alone are not considered duplicate when the audioUrl differs', async () => {
-  const originalFindUnique = prisma.syncLog.findUnique.bind(prisma.syncLog);
-  const originalSongFindFirst = prisma.song.findFirst.bind(prisma.song);
-  const originalArtistUpsert = prisma.artist.upsert.bind(prisma.artist);
-  const originalArtistFindFirst = prisma.artist.findFirst.bind(prisma.artist);
-  const originalGenreUpsert = prisma.genre.upsert.bind(prisma.genre);
-  const originalGenreFindFirst = prisma.genre.findFirst.bind(prisma.genre);
-  const originalAlbumFindFirst = prisma.album.findFirst.bind(prisma.album);
-  const originalAlbumCreate = prisma.album.create.bind(prisma.album);
+// ─── Test 2: audioUrl khác → NEW (đã chuyển sang syncLogDecision.test.ts) ──
+// Test "title and artist alone are not considered duplicate when the audioUrl differs"
+// đã được chuyển sang src/lib/repositories/syncLogDecision.test.ts dưới dạng
+// pure unit test (không cần DB, không cần mock Prisma).
+//
+// Lý do: test này kiểm tra BẤT BIẾN của buildSongMatchWhere (không dùng title/artist),
+// đây là logic thuần không cần I/O. Test tích hợp DB là lớp riêng biệt.
 
-  try {
-    (prisma.syncLog as any).findUnique = async () => null;
-    (prisma.song as any).findFirst = async ({ where }: any) => {
-      assert.ok(where && typeof where === 'object' && 'OR' in where);
-      assert.equal(
-        Array.isArray(where.OR) && where.OR.some((clause: any) =>
-          clause && typeof clause === 'object' && 'AND' in clause && clause.AND.some((part: any) =>
-            part && typeof part === 'object' && 'title' in part && typeof part.title === 'object' && 'equals' in part.title
-          )
-        ),
-        false
-      );
-      return null;
-    };
-    (prisma.artist as any).upsert = async () => ({ id: 'artist-1', name: 'Tester', slug: 'tester' });
-    (prisma.artist as any).findFirst = async () => ({ id: 'artist-1', name: 'Tester', slug: 'tester' });
-    (prisma.genre as any).upsert = async () => ({ id: 'genre-1', name: 'Pop', slug: 'pop' });
-    (prisma.genre as any).findFirst = async () => ({ id: 'genre-1', name: 'Pop', slug: 'pop' });
-    (prisma.album as any).findFirst = async () => null;
-    (prisma.album as any).create = async (input: any) => ({ id: 'album-1', title: input.data.title, artistId: input.data.artistId });
-
-    const result = await syncLogRepo.syncSongFromStudio({
-      idempotencyKey: 'same-title-different-audio',
-      payloadHash: 'hash-same-title-different-audio',
-      payload: {
-        title: 'Test Song',
-        artistName: 'Tester',
-        genreName: 'Pop',
-        audioUrl: 'https://example.com/test-song-v2.mp3',
-        durationSeconds: 180,
-      },
-    });
-
-    assert.equal(result.duplicate, false);
-    assert.equal(result.status, 'SUCCESS');
-  } finally {
-    (prisma.syncLog as any).findUnique = originalFindUnique;
-    (prisma.song as any).findFirst = originalSongFindFirst;
-    (prisma.artist as any).upsert = originalArtistUpsert;
-    (prisma.artist as any).findFirst = originalArtistFindFirst;
-    (prisma.genre as any).upsert = originalGenreUpsert;
-    (prisma.genre as any).findFirst = originalGenreFindFirst;
-    (prisma.album as any).findFirst = originalAlbumFindFirst;
-    (prisma.album as any).create = originalAlbumCreate;
-  }
-});
-
+// ─── Test 3: concurrent duplicate → REUSED qua P2002 ───────────────────────
 test('concurrent same-video request resolves as reused instead of failing with a duplicate database error', async () => {
   const originalFindUnique = prisma.syncLog.findUnique.bind(prisma.syncLog);
   const originalTransaction = prisma.$transaction.bind(prisma);
@@ -167,7 +155,6 @@ test('concurrent same-video request resolves as reused instead of failing with a
           upsert: async () => ({ id: 'log-2' }),
         },
       };
-
       return callback(tx);
     };
     (prisma.syncLog as any).upsert = async () => ({ id: 'log-2' });
