@@ -39,6 +39,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { prisma } from '@/lib/prisma';
+import { buildStudioSyncIdempotencyKey } from '@/lib/studioSync';
+import { songRepo } from './songRepo.js';
 import { syncLogRepo } from './syncLogRepo.js';
 
 const sampleSongRecord = {
@@ -119,6 +121,68 @@ test('reuses same idempotency key without creating a duplicate record', async ()
 //
 // Lý do: test này kiểm tra BẤT BIẾN của buildSongMatchWhere (không dùng title/artist),
 // đây là logic thuần không cần I/O. Test tích hợp DB là lớp riêng biệt.
+
+test('deleteSong cleans sync logs using the studio idempotency key rather than payloadHash', async () => {
+  const originalTransaction = prisma.$transaction.bind(prisma);
+  const seen: Array<{ where: any }> = [];
+
+  try {
+    prisma.$transaction = async (callback: any) => {
+      const tx = {
+        song: {
+          findUnique: async () => ({
+            id: 'song-42',
+            title: 'Test Song',
+            artistId: 'artist-1',
+            audioUrl: 'https://example.com/test-song.mp3',
+            videoId: 'abc123',
+            trimStart: 0,
+            trimEnd: 0,
+          }),
+          delete: async () => ({ id: 'song-42' }),
+        },
+        syncLog: {
+          deleteMany: async (args: any) => {
+            seen.push(args);
+            return { count: 1 };
+          },
+        },
+      };
+
+      return callback(tx);
+    };
+
+    const result = await songRepo.deleteSong('song-42');
+
+    assert.equal(result, true);
+    assert.equal(seen.length, 1);
+    const where = seen[0].where;
+    assert.equal(where.OR.some((clause: any) => Object.prototype.hasOwnProperty.call(clause, 'payloadHash')), false);
+    assert.equal(where.OR.some((clause: any) => Object.prototype.hasOwnProperty.call(clause, 'idempotencyKey')), true);
+
+    const expectedKeys = [
+      buildStudioSyncIdempotencyKey({
+        audioUrl: 'https://example.com/test-song.mp3',
+        id: 'song-42',
+        trimStart: 0,
+        trimEnd: 0,
+      }),
+      buildStudioSyncIdempotencyKey({
+        audioUrl: 'https://example.com/test-song.mp3',
+        videoId: 'abc123',
+        trimStart: 0,
+        trimEnd: 0,
+      }),
+    ].sort();
+
+    assert.deepEqual(
+      where.OR.find((clause: any) => clause.idempotencyKey)?.idempotencyKey.in.sort(),
+      expectedKeys
+    );
+  } finally {
+    prisma.$transaction = originalTransaction;
+  }
+});
 
 // ─── Test 3: concurrent duplicate → REUSED qua P2002 ───────────────────────
 test('concurrent same-video request resolves as reused instead of failing with a duplicate database error', async () => {

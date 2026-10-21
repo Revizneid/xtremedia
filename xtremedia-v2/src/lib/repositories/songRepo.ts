@@ -4,6 +4,7 @@ import path from 'node:path';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { sanitizeAudioUrl } from '@/lib/audioPlayback';
+import { buildStudioSyncIdempotencyKey } from '@/lib/studioSync';
 import type { Song, SongStatus } from '@/lib/types';
 
 export type SongQueryOptions = {
@@ -384,20 +385,25 @@ export const songRepo = {
           throw new Error('missing-song');
         }
 
-        const relatedIdempotencyKeys = [
-          record.videoId ? `${record.videoId}|${record.trimStart}|${record.trimEnd}` : null,
-          `${record.audioUrl}|${record.trimStart}|${record.trimEnd}`,
-        ].filter(Boolean);
+        const relatedIdempotencyKeys = Array.from(new Set([
+          buildStudioSyncIdempotencyKey({
+            audioUrl: record.audioUrl,
+            id: record.id,
+            trimStart: record.trimStart,
+            trimEnd: record.trimEnd,
+          }),
+          record.videoId ? buildStudioSyncIdempotencyKey({
+            audioUrl: record.audioUrl,
+            videoId: record.videoId,
+            trimStart: record.trimStart,
+            trimEnd: record.trimEnd,
+          }) : null,
+        ].filter((key): key is string => Boolean(key))));
 
         await tx.syncLog.deleteMany({
           where: {
             OR: [
-              { idempotencyKey: { in: relatedIdempotencyKeys as string[] } },
-              { payloadHash: { in: [
-                record.audioUrl,
-                `${record.title}|${record.artistId}|${record.audioUrl}`,
-                `${record.videoId ?? record.id}|${record.trimStart}|${record.trimEnd}`,
-              ] } },
+              { idempotencyKey: { in: relatedIdempotencyKeys } },
             ],
           },
         });

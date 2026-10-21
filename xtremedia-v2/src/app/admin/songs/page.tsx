@@ -35,7 +35,7 @@ export default function AdminSongsPage() {
   const [albumTitle, setAlbumTitle] = useState('');
   const [audioUrl, setAudioUrl] = useState('');
   const [coverUrl, setCoverUrl] = useState('');
-  const [durationSeconds, setDurationSeconds] = useState(210);
+  const [durationSeconds, setDurationSeconds] = useState<number | ''>('');
   const [bitrateKbps, setBitrateKbps] = useState(320);
   const [lyricsLrc, setLyricsLrc] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
@@ -76,7 +76,7 @@ export default function AdminSongsPage() {
     setAlbumTitle('');
     setAudioUrl('');
     setCoverUrl('');
-    setDurationSeconds(210);
+    setDurationSeconds('');
     setBitrateKbps(320);
     setLyricsLrc(
       '[00:00.00] Tiêu đề bài hát\n[00:05.00] Lời mở đầu bài hát...\n[00:15.00] Giai điệu trầm ấm vang lên...'
@@ -109,6 +109,12 @@ export default function AdminSongsPage() {
       return;
     }
 
+    const normalizedDuration = Number(durationSeconds);
+    if (!Number.isFinite(normalizedDuration) || normalizedDuration < 1) {
+      setFormError('Vui lòng nhập thời lượng thật của bài (>= 1 giây)');
+      return;
+    }
+
     setSaving(true);
     try {
       if (editingSong) {
@@ -123,7 +129,7 @@ export default function AdminSongsPage() {
             albumTitle: albumTitle.trim() || null,
             audioUrl: audioUrl.trim(),
             coverUrl: coverUrl.trim(),
-            durationSeconds: Number(durationSeconds),
+            durationSeconds: normalizedDuration,
             bitrateKbps: Number(bitrateKbps),
             lyricsLrc: lyricsLrc.trim(),
           }),
@@ -146,7 +152,7 @@ export default function AdminSongsPage() {
             albumTitle: albumTitle.trim() || null,
             audioUrl: audioUrl.trim(),
             coverUrl: coverUrl.trim(),
-            durationSeconds: Number(durationSeconds),
+            durationSeconds: normalizedDuration,
             bitrateKbps: Number(bitrateKbps),
             lyricsLrc: lyricsLrc.trim(),
           }),
@@ -655,10 +661,10 @@ export default function AdminSongsPage() {
                   </label>
                   <input
                     type="number"
-                    min="10"
+                    min="1"
                     max="1000"
                     value={durationSeconds}
-                    onChange={(e) => setDurationSeconds(Number(e.target.value))}
+                    onChange={(e) => setDurationSeconds(e.target.value === '' ? '' : Number(e.target.value))}
                     style={{
                       width: '100%',
                       padding: '11px 14px',

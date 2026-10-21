@@ -45,7 +45,10 @@ const adminSongSchema = z.object({
   albumTitle: z.string().trim().max(160).optional(),
   audioUrl: z.string().trim().min(1).max(2048),
   coverUrl: z.string().trim().max(2048).optional(),
-  durationSeconds: z.union([z.number(), z.string()]).optional(),
+  /** Thời lượng thật của bài (giây). Phải >= 1; không chấp nhận mặc định 210. */
+  durationSeconds: z
+    .union([z.number(), z.string().transform(Number)])
+    .pipe(z.number().finite().min(1, 'durationSeconds phải >= 1 giây')),
   bitrateKbps: z.union([z.number(), z.string()]).optional(),
   lyricsLrc: z.string().trim().max(20000).optional(),
 });
@@ -127,7 +130,7 @@ export async function POST(request: NextRequest) {
       coverUrl: coverUrl && coverUrl.trim()
         ? coverUrl.trim()
         : 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=500&q=80',
-      durationSeconds: Number(durationSeconds) || 210,
+      durationSeconds: Math.round(Number(durationSeconds)),
       bitrateKbps: Number(bitrateKbps) || 320,
       lyricsLrc: lyricsLrc ? lyricsLrc.trim() : undefined,
       playCount: 0,

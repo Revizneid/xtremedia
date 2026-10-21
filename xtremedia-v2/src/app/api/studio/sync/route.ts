@@ -3,7 +3,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { env } from '@/lib/env';
 import { db } from '@/lib/db';
-import { Song } from '@/lib/types';
 import { enforceRateLimit, isHttpsUrl, parseJsonBody } from '@/lib/security';
 import { buildStudioSyncIdempotencyKey, validateStudioSecret } from '@/lib/studioSync';
 
@@ -243,36 +242,27 @@ export async function POST(request: NextRequest) {
       }, { status: 200 });
     }
 
-    const newSong: Song = {
-      id: syncResult.song?.id || id || ('song-' + Date.now()),
-      title: cleanTitle,
-      titleAscii,
-      slug,
-      artistId: syncResult.song?.artistId || 'artist-' + Date.now(),
-      artistName: cleanArtist || 'Chưa rõ',
-      albumId: null,
-      albumTitle: cleanAlbumTitle || null,
-      genreId: null,
-      genreName: cleanGenre || 'Chưa phân loại',
-      audioUrl: normalizedAudioUrl,
-      coverUrl: cleanCoverUrl || 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=500&q=80',
-      durationSeconds: normalizedDurationSeconds,
-      bitrateKbps: bitrateKbps ?? 320,
-      lyricsLrc: lyricsLrc ? String(lyricsLrc).trim() : undefined,
-      playCount: 0,
-      playCountMonth: 0,
-      downloadCount: 0,
-      isBroken: false,
-      status: 'ACTIVE',
-      createdAt: new Date().toISOString(),
-    };
+    // Không construct newSong giả — nếu DB không trả bản ghi thật → 500 rõ ràng
+    if (!payloadForResponse) {
+      console.error(JSON.stringify({
+        event: 'studio_sync_no_db_record',
+        outcome,
+        songId,
+        videoId,
+        durationMs,
+      }));
+      return NextResponse.json(
+        { success: false, error: 'DB không trả bản ghi sau khi sync. Kiểm tra db.syncSongFromStudio.' },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
       outcome: 'created',
       duplicate: false,
-      songId: payloadForResponse?.id ?? newSong.id,
-      song: payloadForResponse ?? newSong,
+      songId: payloadForResponse.id,
+      song: payloadForResponse,
       message: 'XtreMedia Studio đã đồng bộ bài hát thành công!',
     }, { status: 201 });
   } catch (err: unknown) {

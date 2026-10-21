@@ -20,8 +20,9 @@ function makeRequest(body: unknown, headers: Record<string, string> = {}) {
   });
 }
 
-test('web sync accepts decimal duration and persists rounded integer', async () => {
+test('web sync accepts decimal duration and returns the persisted DB record', async () => {
   const originalSync = db.syncSongFromStudio.bind(db);
+  const originalGetSongById = db.getSongById.bind(db);
   let calls = 0;
 
   try {
@@ -30,7 +31,32 @@ test('web sync accepts decimal duration and persists rounded integer', async () 
       assert.equal(input.payload.durationSeconds, 191);
       assert.equal(input.payload.trimStart, 0);
       assert.equal(input.payload.trimEnd, 0);
-      return { duplicate: false, song: null, status: 'SUCCESS' } as any;
+      return { duplicate: false, song: { id: 'song-42', title: 'Test Song', artistName: 'Demo Artist' }, status: 'SUCCESS' } as any;
+    };
+
+    (db as any).getSongById = async (id: string) => {
+      assert.equal(id, 'song-42');
+      return {
+        id: 'song-42',
+        title: 'Test Song',
+        artistName: 'Demo Artist',
+        artistId: 'artist-1',
+        albumId: null,
+        albumTitle: null,
+        genreId: 'genre-1',
+        genreName: 'Pop',
+        audioUrl: 'https://example.com/audio.mp3',
+        coverUrl: 'https://example.com/cover.jpg',
+        durationSeconds: 191,
+        bitrateKbps: 320,
+        lyricsLrc: undefined,
+        playCount: 0,
+        playCountMonth: 0,
+        downloadCount: 0,
+        isBroken: false,
+        status: 'ACTIVE',
+        createdAt: new Date().toISOString(),
+      } as any;
     };
 
     const response = await POST(
@@ -48,9 +74,12 @@ test('web sync accepts decimal duration and persists rounded integer', async () 
     );
 
     assert.equal(response.status, 201);
+    const payload = await response.json();
+    assert.equal(payload.song.durationSeconds, 191);
     assert.equal(calls, 1);
   } finally {
     (db as any).syncSongFromStudio = originalSync;
+    (db as any).getSongById = originalGetSongById;
   }
 });
 
